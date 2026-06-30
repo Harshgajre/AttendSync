@@ -178,6 +178,16 @@ npm run build
 # Deploy 'dist' folder
 ```
 
+### Vercel (Recommended for Frontend)
+
+1. In Vercel, create a new project and import this repository.
+2. Set the root directory to the repository root — `vercel.json` is configured to build the frontend only.
+3. Add environment variables in Vercel dashboard if your frontend requires any (e.g., `REACT_APP_API_URL` pointing to your backend).
+4. Build command: `npm --prefix frontend run build`. Output directory: `frontend/dist`.
+
+Note: This repository keeps the backend in `backend/` which is not configured for Vercel serverless deployment. Deploy the backend separately (e.g., Heroku, Railway, or a VPS) and then point the frontend API URL to that backend.
+
+
 ### Backend (Heroku/Railway)
 ```bash
 # Set environment variables in platform dashboard
