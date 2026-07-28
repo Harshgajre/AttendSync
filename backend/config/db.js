@@ -1,62 +1,66 @@
-const mongoose =
-  require("mongoose");
+const mongoose = require("mongoose");
+const dns = require("dns");
 
 mongoose.set("strictQuery", false);
 
-const connectDB =
-  async () => {
+const connectDB = async () => {
+  try {
+    const uri = process.env.MONGO_URI;
 
-    try {
-
-      // Attempt to extract database name from the URI to force exact casing
-      const uri = process.env.MONGO_URI || "";
-      let dbName;
-      const m = uri.match(/\/([^\/?]+)(\?|$)/);
-      if (m && m[1]) dbName = m[1];
-
-      const conn =
-        await mongoose.connect(
-          uri,
-          dbName ? { dbName } : undefined
-        );
-
-      console.log("");
-
-      console.log(
-        "✅ MongoDB Connected"
-      );
-
-      console.log(
-        `📦 Database Host : ${conn.connection.host}`
-      );
-
-      if (conn.connection && conn.connection.db && conn.connection.db.databaseName) {
-        console.log(
-          `🗄️  Database Name : ${conn.connection.db.databaseName}`
-        );
-      }
-
-      console.log("");
-
-    } catch (error) {
-
-      console.error("");
-
-      console.error(
-        "❌ MongoDB Connection Failed"
-      );
-
-      console.error(
-        error.message
-      );
-
-      console.error("");
-
-      process.exit(1);
-
+    if (!uri) {
+      throw new Error("MONGO_URI is not defined in .env file");
     }
 
-  };
+    // Solve Node.js querySrv ECONNREFUSED DNS issues on Windows / local networks
+    if (uri.startsWith("mongodb+srv://")) {
+      try {
+        dns.setServers(["8.8.8.8", "1.1.1.1"]);
+      } catch (dnsErr) {
+        console.warn("⚠️ Warning: Failed to set custom DNS servers, trying defaults.", dnsErr.message);
+      }
+    }
 
-module.exports =
-  connectDB;
+    const conn = await mongoose.connect(uri);
+
+    console.log("");
+    console.log("=================================");
+    console.log("✅ MongoDB Connected Successfully");
+    console.log(`📦 Host : ${conn.connection.host}`);
+    console.log(`🗄️ Database : ${conn.connection.name}`);
+    console.log("=================================");
+    console.log("");
+
+  } catch (error) {
+
+    console.log("");
+    console.log("=================================");
+    console.log("❌ MongoDB Connection Failed");
+    console.log("=================================");
+    console.log("");
+
+    console.error("Name:");
+    console.error(error.name);
+
+    console.error("\nMessage:");
+    console.error(error.message);
+
+    console.error("\nCause:");
+    console.error(error.cause);
+
+    console.error("\nCode:");
+    console.error(error.code);
+
+    console.error("\nFull Error:");
+    console.error(error);
+
+    console.error("\nStack:");
+    console.error(error.stack);
+
+    console.log("");
+    console.log("=================================");
+
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
