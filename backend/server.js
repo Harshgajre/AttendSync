@@ -5,7 +5,7 @@ const connectDB = require("./config/db");
 
 // Config
 dotenv.config();
-console.log("MONGO_URI:", process.env.MONGO_URI);
+
 
 // App
 const app = express();
@@ -115,11 +115,12 @@ app.use((req, res) => {
 });
 
 // Server
-const PORT =
-  process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
+const seedAdmin = require("./utils/seedAdmin");
 
 const startServer = async () => {
   await connectDB();
+  await seedAdmin();
 
   app.listen(PORT, () => {
     console.log("");
@@ -142,4 +143,4 @@ const startServer = async () => {
   });
 };
 
-startServer();
+startServer();

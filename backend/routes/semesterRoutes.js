@@ -1,42 +1,20 @@
-const express =
-  require("express");
-
-const router =
-  express.Router();
+const express = require("express");
+const router = express.Router();
+const { authMiddleware, adminOnly } = require("../middleware/authMiddleware");
 
 const {
-
   saveSemester,
-
   getSemester,
-
   updateSemester,
-
   deleteSemester,
+} = require("../controllers/semesterController");
 
-} = require(
-  "../controllers/semesterController"
-);
+// Public / Authenticated user view routes
+router.get("/current", getSemester);
 
-router.post(
-  "/save",
-  saveSemester
-);
+// Admin-only mutation routes
+router.post("/save", authMiddleware, adminOnly, saveSemester);
+router.put("/:id", authMiddleware, adminOnly, updateSemester);
+router.delete("/:id", authMiddleware, adminOnly, deleteSemester);
 
-router.get(
-  "/current",
-  getSemester
-);
-
-router.put(
-  "/:id",
-  updateSemester
-);
-
-router.delete(
-  "/:id",
-  deleteSemester
-);
-
-module.exports =
-  router;
+module.exports = router;

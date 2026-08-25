@@ -89,17 +89,22 @@ Frontend runs on `http://localhost:5173`
 
 ## Environment Variables
 
-### Backend (.env)
-```
-PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/Attendsync
+Copy `.env.example` (or `backend/.env.example`) to `backend/.env`:
+
+```bash
+cp .env.example backend/.env
 ```
 
-For production:
-```
+Configure the following variables in `backend/.env`:
+
+```env
 PORT=5000
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/Attendsync
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.example.mongodb.net/attendsync?retryWrites=true&w=majority
+JWT_SECRET=your_strong_jwt_secret_key_here
+ADMIN_EMAIL=admin@attendsync.com
+ADMIN_PASSWORD=your_secure_admin_password_here
 ```
+
 
 ## Available Scripts
 

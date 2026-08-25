@@ -1,6 +1,6 @@
 const express = require("express");
-
 const router = express.Router();
+const { authMiddleware, adminOnly } = require("../middleware/authMiddleware");
 
 const {
   addHoliday,
@@ -14,19 +14,13 @@ const {
  * Holiday Routes
  */
 
-// Get all holidays
+// Public / Authenticated user view routes
 router.get("/", getAllHolidays);
-
-// Get single holiday
 router.get("/:id", getHolidayById);
 
-// Add new holiday
-router.post("/", addHoliday);
+// Admin-only mutation routes
+router.post("/", authMiddleware, adminOnly, addHoliday);
+router.put("/:id", authMiddleware, adminOnly, updateHoliday);
+router.delete("/:id", authMiddleware, adminOnly, deleteHoliday);
 
-// Update holiday
-router.put("/:id", updateHoliday);
-
-// Delete holiday
-router.delete("/:id", deleteHoliday);
-
-module.exports = router;
+module.exports = router;

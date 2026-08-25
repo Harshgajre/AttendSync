@@ -8,9 +8,12 @@ export default function ManageEmployees() {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const response = await fetch(
-          "http://localhost:5000/api/employees/all"
-        );
+        const token = localStorage.getItem("adminToken");
+        const response = await fetch("/api/admin/employees", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const data = await response.json();
 
@@ -31,7 +34,7 @@ export default function ManageEmployees() {
 
     const interval = setInterval(
       fetchEmployees,
-      3000
+      5000
     );
 
     return () =>
@@ -59,11 +62,15 @@ export default function ManageEmployees() {
         return;
 
       try {
+        const token = localStorage.getItem("adminToken");
         const response =
           await fetch(
-            `http://localhost:5000/api/employees/${employeeId}`,
+            `/api/admin/employee/${employeeId}`,
             {
               method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             }
           );
 
@@ -73,6 +80,7 @@ export default function ManageEmployees() {
         if (data.success) {
           setEmployees(
             employees.filter(
+
               (emp) =>
                 emp._id !==
                 employeeId

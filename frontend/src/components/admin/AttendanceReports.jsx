@@ -8,9 +8,15 @@ export default function AttendanceReports() {
   useEffect(() => {
     const loadReports = async () => {
       try {
+        const token = localStorage.getItem("adminToken");
         // Students
         const studentResponse = await fetch(
-          "http://localhost:5000/api/admin/students"
+          "/api/admin/students",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
 
         const studentData =
@@ -25,7 +31,12 @@ export default function AttendanceReports() {
         // Employees
         const employeeResponse =
           await fetch(
-            "http://localhost:5000/api/employees/all"
+            "/api/admin/employees",
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
           );
 
         const employeeData =
@@ -51,7 +62,7 @@ export default function AttendanceReports() {
     const interval =
       setInterval(
         loadReports,
-        3000
+        5000
       );
 
     return () =>
@@ -59,6 +70,7 @@ export default function AttendanceReports() {
         interval
       );
   }, []);
+
 
   if (loading) {
     return (

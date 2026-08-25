@@ -11,7 +11,12 @@ export default function ManageStudents() {
     const fetchStudents = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:5000/api/admin/students");
+        const token = localStorage.getItem("adminToken");
+        const response = await fetch("/api/admin/students", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         
         if (!response.ok) {
           throw new Error("Database se data nahi aa paya!");
@@ -19,7 +24,6 @@ export default function ManageStudents() {
         
         const data = await response.json();
         
-        // 🔥 FIX: Backend se aane wale object me se `.students` array nikalna padega
         if (data.success && Array.isArray(data.students)) {
           setStudents(data.students); 
         } else {
@@ -48,8 +52,12 @@ export default function ManageStudents() {
   const handleDelete = async (studentId) => {
     if (window.confirm("क्या aap is student ko delete karna chahte hain?")) {
       try {
-        const response = await fetch(`http://localhost:5000/api/admin/student/${studentId}`, {
+        const token = localStorage.getItem("adminToken");
+        const response = await fetch(`/api/admin/student/${studentId}`, {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
         const result = await response.json();
         if (result.success) {
@@ -64,6 +72,7 @@ export default function ManageStudents() {
       }
     }
   };
+
 
   return (
     <div>

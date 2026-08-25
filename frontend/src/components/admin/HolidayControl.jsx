@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/holidays";
+const API_URL = "/api/holidays";
 
 export default function HolidayControl() {
   const [holidayName, setHolidayName] = useState("");
@@ -18,6 +18,11 @@ export default function HolidayControl() {
   useEffect(() => {
     fetchHolidays();
   }, []);
+
+  const getAuthHeader = () => {
+    const token = localStorage.getItem("adminToken");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   const fetchHolidays = async () => {
     try {
@@ -85,10 +90,12 @@ export default function HolidayControl() {
     };
 
     try {
+      const headers = getAuthHeader();
       if (editingId) {
         const res = await axios.put(
           `${API_URL}/${editingId}`,
-          payload
+          payload,
+          { headers }
         );
 
         if (res.data.success) {
@@ -97,7 +104,8 @@ export default function HolidayControl() {
       } else {
         const res = await axios.post(
           API_URL,
-          payload
+          payload,
+          { headers }
         );
 
         if (res.data.success) {
@@ -120,7 +128,8 @@ export default function HolidayControl() {
     if (!window.confirm("Delete this holiday?")) return;
 
     try {
-      await axios.delete(`${API_URL}/${id}`);
+      const headers = getAuthHeader();
+      await axios.delete(`${API_URL}/${id}`, { headers });
 
       fetchHolidays();
     } catch (err) {
@@ -128,6 +137,7 @@ export default function HolidayControl() {
       alert("Unable to delete holiday.");
     }
   };
+
 
   const handleEditHoliday = (holiday) => {
     setEditingId(holiday._id);

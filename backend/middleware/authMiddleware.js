@@ -1,57 +1,53 @@
-const jwt =
-  require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 
-const authMiddleware =
-  (req, res, next) => {
+const authMiddleware = (req, res, next) => {
+  try {
+    const authHeader = req.header("Authorization") || req.headers.authorization;
 
-    try {
-
-      const token =
-        req.header(
-          "Authorization"
-        );
-
-      if (!token) {
-
-        return res.status(401).json({
-
-          success: false,
-
-          message:
-            "Access Denied. No Token Provided",
-
-        });
-
-      }
-
-      const verified =
-        jwt.verify(
-
-          token,
-
-          process.env.JWT_SECRET
-
-        );
-
-      req.user =
-        verified;
-
-      next();
-
-    } catch (error) {
-
+    if (!authHeader) {
       return res.status(401).json({
-
         success: false,
-
-        message:
-          "Invalid Token",
-
+        message: "Access Denied. No Token Provided",
       });
-
     }
 
-  };
+    // Support "Bearer <token>" or raw token
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
 
-module.exports =
-  authMiddleware;
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Access Denied. Token is empty",
+      });
+    }
+
+    const secret = process.env.JWT_SECRET || "attendsync_super_secret_jwt_key_2026_secure";
+    const verified = jwt.verify(token, secret);
+
+    req.user = verified;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: error.name === "TokenExpiredError" ? "Token Expired. Please login again." : "Invalid Token",
+    });
+  }
+};
+
+// Admin Role Authorization Middleware
+const adminOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Access Forbidden. Admin privileges required.",
+    });
+  }
+  next();
+};
+
+module.exports = authMiddleware;
+module.exports.authMiddleware = authMiddleware;
+module.exports.adminOnly = adminOnly;
+

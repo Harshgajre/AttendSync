@@ -8,8 +8,7 @@ import LeaveApprovalControl from "./LeaveApprovalControl";
 import ManageStudents from "./ManageStudents";
 import ManageEmployees from "./ManageEmployees";
 
-
-export default function AdminDashboard() {
+export default function AdminDashboard({ onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -17,62 +16,40 @@ export default function AdminDashboard() {
   const [totalEmployees, setTotalEmployees] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
 
-useEffect(() => {
-  const loadDashboardData = async () => {
-    try {
-      const studentResponse = await fetch(
-        "http://localhost:5000/api/admin/students"
-      );
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      const token = localStorage.getItem("adminToken");
+      try {
+        const response = await fetch("/api/admin/dashboard", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      const studentData = await studentResponse.json();
+        if (response.status === 401 || response.status === 403) {
+          if (onLogout) onLogout();
+          return;
+        }
 
-      const students =
-        studentData.success && Array.isArray(studentData.students)
-          ? studentData.students
-          : [];
+        const data = await response.json();
 
-      const employeeResponse = await fetch(
-        "http://localhost:5000/api/employees/all"
-      );
+        if (data.success) {
+          setTotalStudents(data.totalStudents || 0);
+          setTotalEmployees(data.totalEmployees || 0);
+          setTotalUsers(data.totalUsers || 0);
+        }
+      } catch (error) {
+        console.error("Dashboard Data Error:", error);
+      }
+    };
 
-      const employeeData =
-        await employeeResponse.json();
-
-      const employees =
-        employeeData.success &&
-        Array.isArray(employeeData.employees)
-          ? employeeData.employees
-          : [];
-          console.log("Student Data:", studentData);
-console.log("Employee Data:", employeeData);
-console.log("Students Count:", students.length);
-console.log("Employees Count:", employees.length);
-
-      setTotalStudents(students.length);
-      setTotalEmployees(employees.length);
-      setTotalUsers(students.length + employees.length);
-    } catch (error) {
-      console.error(
-        "Dashboard Data Error:",
-        error
-      );
-    }
-  };
-
-  loadDashboardData();
-
-  const interval = setInterval(
-    loadDashboardData,
-    3000
-  );
-
-  return () =>
-    clearInterval(interval);
-}, []);
+    loadDashboardData();
+    const interval = setInterval(loadDashboardData, 5000);
+    return () => clearInterval(interval);
+  }, [onLogout]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white flex">
-
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between p-5 bg-slate-900 border-b border-cyan-500/10">
         <h1 className="text-2xl font-black">
@@ -131,7 +108,7 @@ console.log("Employees Count:", employees.length);
 
         <div className="mt-10 bg-slate-800/80 border border-white/10 p-5 rounded-3xl">
           <div className="flex items-center gap-4 mb-5">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-xl font-bold text-slate-950">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-red-500 to-purple-600 flex items-center justify-center text-xl font-bold text-white">
               A
             </div>
 
@@ -146,7 +123,10 @@ console.log("Employees Count:", employees.length);
             </div>
           </div>
 
-          <button className="w-full bg-red-500 hover:bg-red-600 py-3 rounded-2xl font-semibold">
+          <button
+            onClick={onLogout}
+            className="w-full bg-red-500 hover:bg-red-600 active:scale-[0.98] py-3 rounded-2xl font-semibold transition-all duration-300"
+          >
             Logout →
           </button>
         </div>
@@ -154,7 +134,6 @@ console.log("Employees Count:", employees.length);
 
       {/* Main Content */}
       <div className="flex-1 overflow-x-hidden p-5 sm:p-8 lg:p-10 pt-28 lg:pt-10 overflow-y-auto">
-
         <div className="mb-10">
           {activeSection === "students" && <ManageStudents />}
           {activeSection === "employees" && <ManageEmployees />}
@@ -167,7 +146,6 @@ console.log("Employees Count:", employees.length);
 
         {activeSection === "dashboard" && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-
             <div className="bg-slate-900/80 border border-cyan-500/10 rounded-3xl p-6">
               <p className="text-gray-400 mb-3">
                 Total Students
@@ -207,10 +185,10 @@ console.log("Employees Count:", employees.length);
                 Active
               </h2>
             </div>
-
           </div>
         )}
       </div>
     </div>
   );
 }
+

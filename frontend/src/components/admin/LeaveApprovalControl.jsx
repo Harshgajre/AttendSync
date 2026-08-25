@@ -6,88 +6,60 @@ export default function LeaveApprovalControl() {
     useState([]);
 
   const fetchLeaves = async () => {
-
     try {
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch("/api/leaves/all", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const response =
-        await fetch(
-          "http://localhost:5000/api/leaves/all"
-        );
-
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (data.success) {
-
-        setLeaveRequests(
-          data.leaves
-        );
-
+        setLeaveRequests(data.leaves || []);
       }
-
     } catch (error) {
-
       console.log(error);
-
     }
-
   };
 
   useEffect(() => {
-
     fetchLeaves();
-
   }, []);
 
-  const handleApprove =
-    async (id) => {
+  const handleApprove = async (id) => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      await fetch(`/api/leaves/approve/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      try {
+      fetchLeaves();
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-        await fetch(
+  const handleReject = async (id) => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      await fetch(`/api/leaves/reject/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-          `http://localhost:5000/api/leaves/approve/${id}`,
+      fetchLeaves();
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-          {
-            method: "PUT",
-          }
-
-        );
-
-        fetchLeaves();
-
-      } catch (error) {
-
-        console.log(error);
-
-      }
-
-    };
-
-  const handleReject =
-    async (id) => {
-
-      try {
-
-        await fetch(
-
-          `http://localhost:5000/api/leaves/reject/${id}`,
-
-          {
-            method: "PUT",
-          }
-
-        );
-
-        fetchLeaves();
-
-      } catch (error) {
-
-        console.log(error);
-
-      }
-
-    };
 
   return (
     <div>

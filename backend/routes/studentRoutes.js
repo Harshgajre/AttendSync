@@ -1,63 +1,28 @@
-const express =
-  require("express");
-
-const router =
-  express.Router();
+const express = require("express");
+const router = express.Router();
+const authMiddleware = require("../middleware/authMiddleware");
 
 const {
-
   registerStudent,
-
   loginStudent,
-
+  getStudentProfile,
   getAllStudents,
-
   getStudentById,
-
   updateAttendance,
-
   updateSemester,
-
   deleteStudent,
+} = require("../controllers/studentController");
 
-} = require(
-  "../controllers/studentController"
-);
+// Public routes
+router.post("/register", registerStudent);
+router.post("/login", loginStudent);
 
-router.post(
-  "/register",
-  registerStudent
-);
+// Protected routes (require JWT)
+router.get("/me", authMiddleware, getStudentProfile);
+router.get("/all", getAllStudents);
+router.get("/:id", getStudentById);
+router.put("/attendance/:id", authMiddleware, updateAttendance);
+router.put("/semester/:id", authMiddleware, updateSemester);
+router.delete("/:id", authMiddleware, deleteStudent);
 
-router.post(
-  "/login",
-  loginStudent
-);
-
-router.get(
-  "/all",
-  getAllStudents
-);
-
-router.get(
-  "/:id",
-  getStudentById
-);
-
-router.put(
-  "/attendance/:id",
-  updateAttendance
-);
-
-router.put(
-  "/semester/:id",
-  updateSemester
-);
-
-router.delete(
-  "/:id",
-  deleteStudent
-);
-
-module.exports =
-  router;
+module.exports = router;
