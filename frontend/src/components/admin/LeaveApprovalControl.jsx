@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function LeaveApprovalControl() {
-
-  const [leaveRequests, setLeaveRequests] =
-    useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
 
   const fetchLeaves = async () => {
     try {
       const token = localStorage.getItem("adminToken");
-      const response = await fetch("/api/leaves/all", {
+      const response = await fetch(getApiUrl("/api/leaves/all"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -31,7 +30,7 @@ export default function LeaveApprovalControl() {
   const handleApprove = async (id) => {
     try {
       const token = localStorage.getItem("adminToken");
-      await fetch(`/api/leaves/approve/${id}`, {
+      await fetch(getApiUrl(`/api/leaves/approve/${id}`), {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,7 +46,7 @@ export default function LeaveApprovalControl() {
   const handleReject = async (id) => {
     try {
       const token = localStorage.getItem("adminToken");
-      await fetch(`/api/leaves/reject/${id}`, {
+      await fetch(getApiUrl(`/api/leaves/reject/${id}`), {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -59,6 +58,7 @@ export default function LeaveApprovalControl() {
       console.log(error);
     }
   };
+
 
 
   return (

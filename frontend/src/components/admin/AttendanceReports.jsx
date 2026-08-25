@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function AttendanceReports() {
   const [students, setStudents] = useState([]);
@@ -11,7 +12,7 @@ export default function AttendanceReports() {
         const token = localStorage.getItem("adminToken");
         // Students
         const studentResponse = await fetch(
-          "/api/admin/students",
+          getApiUrl("/api/admin/students"),
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -31,7 +32,7 @@ export default function AttendanceReports() {
         // Employees
         const employeeResponse =
           await fetch(
-            "/api/admin/employees",
+            getApiUrl("/api/admin/employees"),
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -43,6 +44,7 @@ export default function AttendanceReports() {
           await employeeResponse.json();
 
         if (employeeData.success) {
+
           setEmployees(
             employeeData.employees
           );

@@ -7,6 +7,7 @@ import SystemSettings from "./SystemSettings";
 import LeaveApprovalControl from "./LeaveApprovalControl";
 import ManageStudents from "./ManageStudents";
 import ManageEmployees from "./ManageEmployees";
+import { getApiUrl } from "../../config/api";
 
 export default function AdminDashboard({ onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -20,11 +21,12 @@ export default function AdminDashboard({ onLogout }) {
     const loadDashboardData = async () => {
       const token = localStorage.getItem("adminToken");
       try {
-        const response = await fetch("/api/admin/dashboard", {
+        const response = await fetch(getApiUrl("/api/admin/dashboard"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+
 
         if (response.status === 401 || response.status === 403) {
           if (onLogout) onLogout();

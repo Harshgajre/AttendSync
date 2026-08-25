@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import AdminDashboard from "./AdminDashboard";
+import { getApiUrl } from "../../config/api";
 
 export default function AdminLogin({ onLoginSuccess }) {
   const [username, setUsername] = useState("");
@@ -37,7 +38,7 @@ export default function AdminLogin({ onLoginSuccess }) {
 
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/login", {
+      const response = await fetch(getApiUrl("/api/admin/login"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -47,6 +48,7 @@ export default function AdminLogin({ onLoginSuccess }) {
           password,
         }),
       });
+
 
       const data = await response.json();
 

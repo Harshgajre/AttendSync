@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function ManageStudents() {
   const [students, setStudents] = useState([]);
@@ -12,7 +13,7 @@ export default function ManageStudents() {
       try {
         setLoading(true);
         const token = localStorage.getItem("adminToken");
-        const response = await fetch("/api/admin/students", {
+        const response = await fetch(getApiUrl("/api/admin/students"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -53,12 +54,13 @@ export default function ManageStudents() {
     if (window.confirm("क्या aap is student ko delete karna chahte hain?")) {
       try {
         const token = localStorage.getItem("adminToken");
-        const response = await fetch(`/api/admin/student/${studentId}`, {
+        const response = await fetch(getApiUrl(`/api/admin/student/${studentId}`), {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+
         const result = await response.json();
         if (result.success) {
           // UI se bhi hata do instant refresh ke liye

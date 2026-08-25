@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import StudentDashboard from "./StudentDashboard";
+import { getApiUrl } from "../../config/api";
 
 export default function StudentLogin() {
   const [isRegister, setIsRegister] = useState(false);
@@ -9,16 +10,15 @@ export default function StudentLogin() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  // Check existing authenticated session on load
+  // Check saved session
   useEffect(() => {
     try {
       const token = localStorage.getItem("studentToken");
       const savedUser = localStorage.getItem("studentUser");
-
       if (token && savedUser) {
         const parsed = JSON.parse(savedUser);
         if (parsed && parsed.name) {
@@ -33,6 +33,7 @@ export default function StudentLogin() {
     }
   }, []);
 
+
   const handleLogin = async () => {
     setError("");
     setSuccessMsg("");
@@ -44,7 +45,7 @@ export default function StudentLogin() {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/students/login`, {
+      const response = await fetch(getApiUrl(`/api/students/login`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,21 +60,20 @@ export default function StudentLogin() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setError(data.message || "Login failed. Please check your credentials.");
+        setError(data.message || "Invalid credentials. Please verify your Name, College, and Password.");
         setLoading(false);
         return;
       }
 
-      // Store JWT token and user info
       if (data.token) {
         localStorage.setItem("studentToken", data.token);
       }
       if (data.student) {
         localStorage.setItem("studentUser", JSON.stringify(data.student));
       }
-
       setError("");
       setIsLoggedIn(true);
+
     } catch (err) {
       setError("Unable to connect to the server. Please verify the backend is running.");
     } finally {
@@ -85,13 +85,13 @@ export default function StudentLogin() {
     setError("");
     setSuccessMsg("");
 
-    if (!studentName.trim() || !collegeName.trim() || !password) {
+    if (!studentName.trim() || !collegeName.trim() || !password || !confirmPassword) {
       setError("Please fill all required fields");
       return;
     }
 
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters long");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long");
       return;
     }
 
@@ -102,7 +102,7 @@ export default function StudentLogin() {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/students/register`, {
+      const response = await fetch(getApiUrl(`/api/students/register`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function ManageEmployees() {
   const [employees, setEmployees] = useState([]);
@@ -9,7 +10,7 @@ export default function ManageEmployees() {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem("adminToken");
-        const response = await fetch("/api/admin/employees", {
+        const response = await fetch(getApiUrl("/api/admin/employees"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -65,7 +66,7 @@ export default function ManageEmployees() {
         const token = localStorage.getItem("adminToken");
         const response =
           await fetch(
-            `/api/admin/employee/${employeeId}`,
+            getApiUrl(`/api/admin/employee/${employeeId}`),
             {
               method: "DELETE",
               headers: {
@@ -73,6 +74,7 @@ export default function ManageEmployees() {
               },
             }
           );
+
 
         const data =
           await response.json();

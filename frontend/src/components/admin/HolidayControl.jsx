@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { getApiUrl } from "../../config/api";
 
-const API_URL = "/api/holidays";
+const API_URL = getApiUrl("/api/holidays");
+
 
 export default function HolidayControl() {
   const [holidayName, setHolidayName] = useState("");

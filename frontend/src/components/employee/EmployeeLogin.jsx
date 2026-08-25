@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import EmployeeDashboard from "./EmployeeDashboard";
+import { getApiUrl } from "../../config/api";
 
 export default function EmployeeLogin() {
   const [isRegister, setIsRegister] = useState(false);
@@ -43,7 +44,7 @@ export default function EmployeeLogin() {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/employees/login`, {
+      const response = await fetch(getApiUrl(`/api/employees/login`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +102,7 @@ export default function EmployeeLogin() {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/employees/register`, {
+      const response = await fetch(getApiUrl(`/api/employees/register`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,6 +113,7 @@ export default function EmployeeLogin() {
           password,
         }),
       });
+
 
       const data = await response.json();
 

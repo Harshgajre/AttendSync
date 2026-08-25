@@ -1,134 +1,69 @@
 import { useEffect, useState } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function LeaveApproval() {
-
-  const [leaveType, setLeaveType] =
-    useState("");
-
-  const [fromDate, setFromDate] =
-    useState("");
-
-  const [toDate, setToDate] =
-    useState("");
-
-  const [reason, setReason] =
-    useState("");
-
-  const [leaveRequests, setLeaveRequests] =
-    useState([]);
+  const [leaveType, setLeaveType] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [reason, setReason] = useState("");
+  const [leaveRequests, setLeaveRequests] = useState([]);
 
   // Fetch All Leaves
   const fetchLeaves = async () => {
-
     try {
-
-      const response =
-        await fetch(
-          "http://localhost:5000/api/leaves/all"
-        );
-
-      const data =
-        await response.json();
-
+      const response = await fetch(getApiUrl("/api/leaves/all"));
+      const data = await response.json();
       if (data.success) {
-
-        setLeaveRequests(
-          data.leaves
-        );
-
+        setLeaveRequests(data.leaves || []);
       }
-
     } catch (error) {
-
       console.log(error);
-
     }
-
   };
 
   useEffect(() => {
-
     fetchLeaves();
-
   }, []);
 
   // Submit Leave
-  const handleSubmit =
-    async () => {
+  const handleSubmit = async () => {
+    if (!leaveType || !fromDate || !toDate || !reason) {
+      alert("Please fill all fields");
+      return;
+    }
 
-      if (
-        !leaveType ||
-        !fromDate ||
-        !toDate ||
-        !reason
-      ) {
-        alert(
-          "Please fill all fields"
-        );
-        return;
+    try {
+      const response = await fetch(getApiUrl("/api/leaves/create"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          employeeName: "Harsh",
+          employeeId: "EMP001",
+          leaveType,
+          fromDate,
+          toDate,
+          reason,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert("Leave Request Submitted");
+        fetchLeaves();
+        setLeaveType("");
+        setFromDate("");
+        setToDate("");
+        setReason("");
       }
-
-      try {
-
-        const response =
-          await fetch(
-            "http://localhost:5000/api/leaves/create",
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-
-                employeeName:
-                  "Harsh",
-
-                employeeId:
-                  "EMP001",
-
-                leaveType,
-
-                fromDate,
-
-                toDate,
-
-                reason,
-
-              }),
-
-            }
-          );
-
-        const data =
-          await response.json();
-
-        if (data.success) {
-
-          alert(
-            "Leave Request Submitted"
-          );
-
-          fetchLeaves();
-
-          setLeaveType("");
-          setFromDate("");
-          setToDate("");
-          setReason("");
-
-        }
-
-      } catch (error) {
-
-        console.log(error);
-
-      }
-
-    };
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
+
     <div>
 
       <h1 className="text-4xl sm:text-5xl font-black mb-10">
