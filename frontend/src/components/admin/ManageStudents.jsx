@@ -18,15 +18,15 @@ export default function ManageStudents() {
             Authorization: `Bearer ${token}`,
           },
         });
-        
+
         if (!response.ok) {
           throw new Error("Database se data nahi aa paya!");
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success && Array.isArray(data.students)) {
-          setStudents(data.students); 
+          setStudents(data.students);
         } else {
           setStudents([]);
         }
@@ -51,29 +51,26 @@ export default function ManageStudents() {
 
   // Individual Student ko delete karne ka function
   const handleDelete = async (studentId) => {
-    if (window.confirm("क्या aap is student ko delete karna chahte hain?")) {
-      try {
-        const token = localStorage.getItem("adminToken");
-        const response = await fetch(getApiUrl(`/api/admin/student/${studentId}`), {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    if (!window.confirm("Delete Student?")) return;
 
-        const result = await response.json();
-        if (result.success) {
-          // UI se bhi hata do instant refresh ke liye
-          setStudents(students.filter(std => std._id !== studentId));
-          alert("Student delete ho gaya!");
-        } else {
-          alert("Delete karne me koi dikkat aayi.");
-        }
-      } catch (err) {
-        console.error("Error deleting student:", err);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch(getApiUrl(`/api/admin/student/${studentId}`), {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setStudents(students.filter((std) => std._id !== studentId));
       }
+    } catch (err) {
+      console.error("Error deleting student:", err);
     }
   };
+
 
 
   return (
@@ -125,7 +122,7 @@ export default function ManageStudents() {
                     <td className="p-4">{student.college || "N/A"}</td>
                     <td className="p-4 text-green-400">Active</td>
                     <td className="p-4">
-                      <button 
+                      <button
                         onClick={() => handleDelete(student._id)}
                         className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition"
                       >
