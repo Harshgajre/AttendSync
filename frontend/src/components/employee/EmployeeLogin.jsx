@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import EmployeeDashboard from "./EmployeeDashboard";
+import FaceEnrollmentModal from "../common/FaceEnrollmentModal";
+import FaceAttendanceModal from "../common/FaceAttendanceModal";
 import { getApiUrl } from "../../config/api";
 
 export default function EmployeeLogin() {
@@ -12,6 +14,11 @@ export default function EmployeeLogin() {
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Face Recognition Biometric States
+  const [faceData, setFaceData] = useState(null); // { faceEmbedding: Array, faceImage: String }
+  const [showFaceEnrollModal, setShowFaceEnrollModal] = useState(false);
+  const [showFaceAttendanceModal, setShowFaceAttendanceModal] = useState(false);
 
   // Check existing authenticated session on load
   useEffect(() => {
@@ -100,6 +107,12 @@ export default function EmployeeLogin() {
       return;
     }
 
+    // Biometric face enrollment requirement
+    if (!faceData || !faceData.faceEmbedding || faceData.faceEmbedding.length === 0) {
+      setError("Face enrollment is required! Please click 'Scan My Face' to register your biometric face profile.");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(getApiUrl(`/api/employees/register`), {
@@ -111,9 +124,10 @@ export default function EmployeeLogin() {
           name: employeeName.trim(),
           company: officeName.trim(),
           password,
+          faceEmbedding: faceData.faceEmbedding,
+          faceImage: faceData.faceImage,
         }),
       });
-
 
       const data = await response.json();
 
@@ -154,6 +168,7 @@ export default function EmployeeLogin() {
           setOfficeName("");
           setPassword("");
           setConfirmPassword("");
+          setFaceData(null);
           setError("");
           setSuccessMsg("");
         }}
@@ -162,32 +177,56 @@ export default function EmployeeLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-slate-950 to-slate-900 text-white px-6">
-      {/* Glow */}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-slate-950 to-slate-900 text-white px-6 py-12 relative overflow-hidden">
+      {/* Glow Effects */}
       <div className="absolute top-20 left-20 w-72 h-72 bg-green-500/20 rounded-full blur-3xl"></div>
       <div className="absolute bottom-20 right-20 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl"></div>
 
-      {/* Card */}
-      <div className="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-2xl border border-green-500/20 rounded-[40px] p-10 shadow-[0_0_60px_rgba(34,197,94,0.15)]">
+      {/* Main Card */}
+      <div className="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-2xl border border-green-500/20 rounded-[40px] p-8 sm:p-10 shadow-[0_0_60px_rgba(34,197,94,0.15)]">
         {/* Header */}
         <div className="text-center mb-8">
           {/* Logo */}
-          <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-4xl font-black shadow-2xl shadow-green-500/30 mb-6">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center text-3xl font-black shadow-2xl shadow-green-500/30 mb-5">
             E
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl sm:text-5xl font-black mb-3">
+          <h1 className="text-3xl sm:text-4xl font-black mb-2">
             {isRegister ? "Employee Register" : "Employee Login"}
           </h1>
 
           {/* Subtitle */}
-          <p className="text-gray-400 text-base sm:text-lg">
+          <p className="text-gray-400 text-sm sm:text-base">
             {isRegister
-              ? "Create your AttendSync employee account"
+              ? "Register with Facial Biometrics & Profile"
               : "AttendSync Employee Portal"}
           </p>
         </div>
+
+        {/* Quick Face Attendance Button for Returning Users */}
+        {!isRegister && (
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => setShowFaceAttendanceModal(true)}
+              className="w-full group bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-teal-500/20 hover:from-green-500/30 hover:to-teal-500/30 border border-green-400/30 hover:border-green-400 p-4 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg shadow-green-500/10"
+            >
+              <span className="text-2xl group-hover:scale-110 transition-transform">📸</span>
+              <div className="text-left">
+                <p className="text-sm font-black text-emerald-300">Scan Face to Mark Attendance</p>
+                <p className="text-[11px] text-gray-400">Instant 1-click slot check-in</p>
+              </div>
+            </button>
+            <div className="relative my-6 flex items-center justify-center">
+              <div className="border-t border-white/10 w-full"></div>
+              <span className="bg-slate-900 px-3 text-xs text-gray-500 uppercase tracking-widest font-bold">
+                Or Sign In with Password
+              </span>
+              <div className="border-t border-white/10 w-full"></div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Switcher */}
         <div className="flex bg-slate-800/80 p-1.5 rounded-2xl mb-6 border border-white/10">
@@ -252,6 +291,47 @@ export default function EmployeeLogin() {
               className="w-full bg-slate-800/80 border border-white/10 focus:border-green-400 p-4 rounded-2xl outline-none text-white transition-all placeholder:text-gray-500"
             />
           </div>
+
+          {/* Face Biometric Enrollment Section (in register mode) */}
+          {isRegister && (
+            <div className="bg-slate-800/60 border border-emerald-500/20 rounded-2xl p-4">
+              <label className="block text-xs uppercase tracking-wider text-emerald-300 font-bold mb-2">
+                Facial Biometric Enrollment *
+              </label>
+
+              {faceData && faceData.faceImage ? (
+                <div className="flex items-center gap-4 bg-slate-900/90 p-3 rounded-xl border border-emerald-500/30">
+                  <img
+                    src={faceData.faceImage}
+                    alt="Enrolled Face"
+                    className="w-14 h-14 rounded-xl object-cover border border-emerald-400"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                      <span>✓</span> Face Enrolled Successfully
+                    </p>
+                    <p className="text-[11px] text-gray-400">Biometric template registered</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFaceEnrollModal(true)}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-semibold rounded-lg transition"
+                  >
+                    Re-scan
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowFaceEnrollModal(true)}
+                  className="w-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-emerald-400/40 hover:border-emerald-400 text-emerald-300 py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition duration-200"
+                >
+                  <span>📸</span>
+                  <span>Scan My Face</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Password */}
           <div>
@@ -345,6 +425,26 @@ export default function EmployeeLogin() {
           )}
         </div>
       </div>
+
+      {/* Face Biometric Enrollment Modal */}
+      <FaceEnrollmentModal
+        isOpen={showFaceEnrollModal}
+        onClose={() => setShowFaceEnrollModal(false)}
+        onEnrollComplete={(biometrics) => {
+          setFaceData(biometrics);
+          setError("");
+        }}
+        role="Employee"
+      />
+
+      {/* Face Attendance Scanner Modal */}
+      <FaceAttendanceModal
+        isOpen={showFaceAttendanceModal}
+        onClose={() => setShowFaceAttendanceModal(false)}
+        onAttendanceSuccess={() => {
+          // Handled inside modal with rich result feedback
+        }}
+      />
     </div>
   );
-}
+}

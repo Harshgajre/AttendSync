@@ -24,6 +24,9 @@ const sanitizeStudent = (student) => {
     college: student.college,
     semester: student.semester,
     attendance: student.attendance,
+    faceRegistered: student.faceRegistered || false,
+    faceImage: student.faceImage || "",
+    faceRegisteredAt: student.faceRegisteredAt,
     lastLogin: student.lastLogin,
     loginCount: student.loginCount,
     createdAt: student.createdAt,
@@ -34,7 +37,7 @@ const sanitizeStudent = (student) => {
 // Register Student
 const registerStudent = async (req, res) => {
   try {
-    const { name, college, password, semester } = req.body;
+    const { name, college, password, semester, faceEmbedding, faceImage } = req.body;
 
     if (!name || !college || !password) {
       return res.status(400).json({
@@ -63,11 +66,17 @@ const registerStudent = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    const isFaceProvided = Array.isArray(faceEmbedding) && faceEmbedding.length > 0;
+
     const student = new Student({
       name: trimmedName,
       college: trimmedCollege,
       password: hashedPassword,
       semester: semester || "1",
+      faceEmbedding: isFaceProvided ? faceEmbedding : [],
+      faceRegistered: isFaceProvided,
+      faceImage: faceImage || "",
+      faceRegisteredAt: isFaceProvided ? new Date() : null,
       lastLogin: new Date(),
       loginCount: 1,
     });
@@ -127,7 +136,6 @@ const loginStudent = async (req, res) => {
       // Fallback for legacy plain text passwords if any
       if (!isMatch && student.password === password) {
         isMatch = true;
-        // Upgrade to hashed password
         const salt = await bcrypt.genSalt(10);
         student.password = await bcrypt.hash(password, salt);
       }
@@ -161,6 +169,46 @@ const loginStudent = async (req, res) => {
   }
 };
 
+// Enroll / Update Face Biometrics for Student
+const enrollStudentFace = async (req, res) => {
+  try {
+    const { faceEmbedding, faceImage } = req.body;
+
+    if (!faceEmbedding || !Array.isArray(faceEmbedding) || faceEmbedding.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid face embedding data is required",
+      });
+    }
+
+    const student = await Student.findById(req.params.id || req.user.id);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    student.faceEmbedding = faceEmbedding;
+    student.faceRegistered = true;
+    if (faceImage) student.faceImage = faceImage;
+    student.faceRegisteredAt = new Date();
+    await student.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Face enrolled successfully for Student",
+      student: sanitizeStudent(student),
+    });
+  } catch (error) {
+    console.error("enrollStudentFace error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Face enrollment failed",
+    });
+  }
+};
+
 // Get Current Authenticated Student (from JWT)
 const getStudentProfile = async (req, res) => {
   try {
@@ -175,7 +223,7 @@ const getStudentProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      student,
+      student: sanitizeStudent(student),
     });
   } catch (error) {
     res.status(500).json({
@@ -193,7 +241,7 @@ const getAllStudents = async (req, res) => {
     res.status(200).json({
       success: true,
       count: students.length,
-      students,
+      students: students.map(sanitizeStudent),
     });
   } catch (error) {
     res.status(500).json({
@@ -217,7 +265,7 @@ const getStudentById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      student,
+      student: sanitizeStudent(student),
     });
   } catch (error) {
     res.status(500).json({
@@ -243,7 +291,7 @@ const updateAttendance = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Attendance Updated",
-      student,
+      student: sanitizeStudent(student),
     });
   } catch (error) {
     res.status(500).json({
@@ -269,7 +317,7 @@ const updateSemester = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Semester Updated",
-      student,
+      student: sanitizeStudent(student),
     });
   } catch (error) {
     res.status(500).json({
@@ -296,14 +344,14 @@ const deleteStudent = async (req, res) => {
   }
 };
 
-// Export
 module.exports = {
   registerStudent,
   loginStudent,
+  enrollStudentFace,
   getStudentProfile,
   getAllStudents,
   getStudentById,
   updateAttendance,
   updateSemester,
   deleteStudent,
-};
+};

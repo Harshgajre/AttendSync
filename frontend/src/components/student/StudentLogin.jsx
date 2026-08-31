@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import StudentDashboard from "./StudentDashboard";
+import FaceEnrollmentModal from "../common/FaceEnrollmentModal";
+import FaceAttendanceModal from "../common/FaceAttendanceModal";
 import { getApiUrl } from "../../config/api";
 
 export default function StudentLogin() {
@@ -13,6 +15,11 @@ export default function StudentLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Face Recognition Biometric States
+  const [faceData, setFaceData] = useState(null); // { faceEmbedding: Array, faceImage: String }
+  const [showFaceEnrollModal, setShowFaceEnrollModal] = useState(false);
+  const [showFaceAttendanceModal, setShowFaceAttendanceModal] = useState(false);
 
   // Check saved session
   useEffect(() => {
@@ -32,7 +39,6 @@ export default function StudentLogin() {
       localStorage.removeItem("studentUser");
     }
   }, []);
-
 
   const handleLogin = async () => {
     setError("");
@@ -73,7 +79,6 @@ export default function StudentLogin() {
       }
       setError("");
       setIsLoggedIn(true);
-
     } catch (err) {
       setError("Unable to connect to the server. Please verify the backend is running.");
     } finally {
@@ -100,6 +105,12 @@ export default function StudentLogin() {
       return;
     }
 
+    // Biometric face enrollment requirement
+    if (!faceData || !faceData.faceEmbedding || faceData.faceEmbedding.length === 0) {
+      setError("Face enrollment is required! Please click 'Scan My Face' to register your biometric face profile.");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(getApiUrl(`/api/students/register`), {
@@ -112,6 +123,8 @@ export default function StudentLogin() {
           college: collegeName.trim(),
           semester: semester || "1",
           password,
+          faceEmbedding: faceData.faceEmbedding,
+          faceImage: faceData.faceImage,
         }),
       });
 
@@ -154,6 +167,7 @@ export default function StudentLogin() {
           setCollegeName("");
           setPassword("");
           setConfirmPassword("");
+          setFaceData(null);
           setError("");
           setSuccessMsg("");
         }}
@@ -162,29 +176,53 @@ export default function StudentLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white px-6">
-      {/* Glow */}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white px-6 py-12 relative overflow-hidden">
+      {/* Glow Effects */}
       <div className="absolute top-20 left-20 w-72 h-72 bg-cyan-500/20 rounded-full blur-3xl"></div>
       <div className="absolute bottom-20 right-20 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl"></div>
 
-      {/* Card */}
-      <div className="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-2xl border border-cyan-500/20 rounded-[40px] p-10 shadow-[0_0_60px_rgba(34,211,238,0.15)]">
+      {/* Main Card */}
+      <div className="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-2xl border border-cyan-500/20 rounded-[40px] p-8 sm:p-10 shadow-[0_0_60px_rgba(34,211,238,0.15)]">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-4xl font-black shadow-2xl shadow-cyan-500/30 mb-6">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-3xl font-black shadow-2xl shadow-cyan-500/30 mb-5">
             S
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-black mb-3">
+          <h1 className="text-3xl sm:text-4xl font-black mb-2">
             {isRegister ? "Student Register" : "Student Login"}
           </h1>
 
-          <p className="text-gray-400 text-base sm:text-lg">
+          <p className="text-gray-400 text-sm sm:text-base">
             {isRegister
-              ? "Create your AttendSync student account"
+              ? "Register with Facial Biometrics & Profile"
               : "AttendSync Student Portal"}
           </p>
         </div>
+
+        {/* Quick Face Attendance Button for Returning Users */}
+        {!isRegister && (
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => setShowFaceAttendanceModal(true)}
+              className="w-full group bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-emerald-500/20 hover:from-cyan-500/30 hover:to-emerald-500/30 border border-cyan-400/30 hover:border-cyan-400 p-4 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg shadow-cyan-500/10"
+            >
+              <span className="text-2xl group-hover:scale-110 transition-transform">📸</span>
+              <div className="text-left">
+                <p className="text-sm font-black text-cyan-300">Scan Face to Mark Attendance</p>
+                <p className="text-[11px] text-gray-400">Instant 1-click slot check-in</p>
+              </div>
+            </button>
+            <div className="relative my-6 flex items-center justify-center">
+              <div className="border-t border-white/10 w-full"></div>
+              <span className="bg-slate-900 px-3 text-xs text-gray-500 uppercase tracking-widest font-bold">
+                Or Sign In with Password
+              </span>
+              <div className="border-t border-white/10 w-full"></div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Switcher */}
         <div className="flex bg-slate-800/80 p-1.5 rounded-2xl mb-6 border border-white/10">
@@ -267,6 +305,47 @@ export default function StudentLogin() {
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Face Biometric Enrollment Section (in register mode) */}
+          {isRegister && (
+            <div className="bg-slate-800/60 border border-cyan-500/20 rounded-2xl p-4">
+              <label className="block text-xs uppercase tracking-wider text-cyan-300 font-bold mb-2">
+                Facial Biometric Enrollment *
+              </label>
+
+              {faceData && faceData.faceImage ? (
+                <div className="flex items-center gap-4 bg-slate-900/90 p-3 rounded-xl border border-emerald-500/30">
+                  <img
+                    src={faceData.faceImage}
+                    alt="Enrolled Face"
+                    className="w-14 h-14 rounded-xl object-cover border border-emerald-400"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                      <span>✓</span> Face Enrolled Successfully
+                    </p>
+                    <p className="text-[11px] text-gray-400">Biometric template registered</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFaceEnrollModal(true)}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-semibold rounded-lg transition"
+                  >
+                    Re-scan
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowFaceEnrollModal(true)}
+                  className="w-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-400/40 hover:border-cyan-400 text-cyan-300 py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition duration-200"
+                >
+                  <span>📸</span>
+                  <span>Scan My Face</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -362,6 +441,26 @@ export default function StudentLogin() {
           )}
         </div>
       </div>
+
+      {/* Face Biometric Enrollment Modal */}
+      <FaceEnrollmentModal
+        isOpen={showFaceEnrollModal}
+        onClose={() => setShowFaceEnrollModal(false)}
+        onEnrollComplete={(biometrics) => {
+          setFaceData(biometrics);
+          setError("");
+        }}
+        role="Student"
+      />
+
+      {/* Face Attendance Scanner Modal */}
+      <FaceAttendanceModal
+        isOpen={showFaceAttendanceModal}
+        onClose={() => setShowFaceAttendanceModal(false)}
+        onAttendanceSuccess={() => {
+          // Handled inside modal with comprehensive feedback
+        }}
+      />
     </div>
   );
-}
+}

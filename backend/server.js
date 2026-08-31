@@ -2,10 +2,11 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const seedAdmin = require("./utils/seedAdmin");
+const seedSlots = require("./utils/seedSlots");
 
 // Config
 dotenv.config();
-
 
 // App
 const app = express();
@@ -39,133 +40,70 @@ app.use(
   })
 );
 
-
-app.use(express.json());
-
-app.use(express.urlencoded({
-  extended: true,
-}));
+// Support JSON payloads including face embeddings and base64 face thumbnails
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
 // Home Route
 app.get("/", (req, res) => {
-
   res.status(200).json({
-
     success: true,
-
-    message:
-      "AttendSync Backend Running 🚀",
-
+    message: "AttendSync Face Recognition Backend Running 🚀",
   });
-
 });
 
 // Health Check
-app.get(
-  "/api/health",
-  (req, res) => {
-
-    res.status(200).json({
-
-      success: true,
-
-      server: "Running",
-
-      timestamp:
-        new Date(),
-
-    });
-
-  }
-);
-
-
-const studentRoutes =
-  require("./routes/studentRoutes");
-
-const employeeRoutes =
-  require("./routes/employeeRoutes");
-
-const holidayRoutes =
-  require("./routes/holidayRoutes");
-
-const semesterRoutes =
-  require("./routes/semesterRoutes");
-
-const leaveRoutes =
-  require("./routes/leaveRoutes");
-
-const adminRoutes =
-  require("./routes/adminRoutes");
-
-app.use(
-  "/api/students",
-  studentRoutes
-);
-
-app.use(
-  "/api/employees",
-  employeeRoutes
-);
-
-app.use(
-  "/api/holidays",
-  holidayRoutes
-);
-
-app.use(
-  "/api/semester",
-  semesterRoutes
-);
-
-app.use(
-  "/api/leaves",
-  leaveRoutes
-);
-
-app.use(
-  "/api/admin",
-  adminRoutes
-);
-
-app.use((req, res) => {
-
-  res.status(404).json({
-
-    success: false,
-
-    message:
-      "Route Not Found",
-
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    server: "Running",
+    timestamp: new Date(),
   });
-
 });
 
-// Server
+// Route Imports
+const studentRoutes = require("./routes/studentRoutes");
+const employeeRoutes = require("./routes/employeeRoutes");
+const holidayRoutes = require("./routes/holidayRoutes");
+const semesterRoutes = require("./routes/semesterRoutes");
+const leaveRoutes = require("./routes/leaveRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const slotRoutes = require("./routes/slotRoutes");
+const attendanceRoutes = require("./routes/attendanceRoutes");
+
+// Route Registrations
+app.use("/api/students", studentRoutes);
+app.use("/api/employees", employeeRoutes);
+app.use("/api/holidays", holidayRoutes);
+app.use("/api/semester", semesterRoutes);
+app.use("/api/leaves", leaveRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/slots", slotRoutes);
+app.use("/api/attendance", attendanceRoutes);
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route Not Found",
+  });
+});
+
+// Server Initialization
 const PORT = process.env.PORT || 5000;
-const seedAdmin = require("./utils/seedAdmin");
 
 const startServer = async () => {
   await connectDB();
   await seedAdmin();
+  await seedSlots();
 
   app.listen(PORT, () => {
     console.log("");
-    console.log(
-      "================================="
-    );
-    console.log(
-      `🚀 attendSync Server Running`
-    );
-    console.log(
-      `📡 Port : ${PORT}`
-    );
-    console.log(
-      `🌍 URL  : http://localhost:${PORT}`
-    );
-    console.log(
-      "================================="
-    );
+    console.log("=================================");
+    console.log(`🚀 AttendSync Face Recognition Server Running`);
+    console.log(`📡 Port : ${PORT}`);
+    console.log(`🌍 URL  : http://localhost:${PORT}`);
+    console.log("=================================");
     console.log("");
   });
 };

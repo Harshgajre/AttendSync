@@ -5,6 +5,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const {
   registerStudent,
   loginStudent,
+  enrollStudentFace,
   getStudentProfile,
   getAllStudents,
   getStudentById,
@@ -21,8 +22,9 @@ router.post("/login", loginStudent);
 router.get("/me", authMiddleware, getStudentProfile);
 router.get("/all", getAllStudents);
 router.get("/:id", getStudentById);
+router.post("/enroll-face/:id", authMiddleware, enrollStudentFace);
 router.put("/attendance/:id", authMiddleware, updateAttendance);
 router.put("/semester/:id", authMiddleware, updateSemester);
 router.delete("/:id", authMiddleware, deleteStudent);
 
-module.exports = router;
+module.exports = router;

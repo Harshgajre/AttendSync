@@ -27,6 +27,9 @@ const sanitizeEmployee = (employee) => {
     usedPF: employee.usedPF,
     totalCL: employee.totalCL,
     usedCL: employee.usedCL,
+    faceRegistered: employee.faceRegistered || false,
+    faceImage: employee.faceImage || "",
+    faceRegisteredAt: employee.faceRegisteredAt,
     lastLogin: employee.lastLogin,
     loginCount: employee.loginCount,
     createdAt: employee.createdAt,
@@ -37,7 +40,7 @@ const sanitizeEmployee = (employee) => {
 // Register Employee
 const registerEmployee = async (req, res) => {
   try {
-    const { name, company, password } = req.body;
+    const { name, company, password, faceEmbedding, faceImage } = req.body;
 
     if (!name || !company || !password) {
       return res.status(400).json({
@@ -66,6 +69,8 @@ const registerEmployee = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    const isFaceProvided = Array.isArray(faceEmbedding) && faceEmbedding.length > 0;
+
     const employee = new Employee({
       name: trimmedName,
       company: trimmedCompany,
@@ -75,6 +80,10 @@ const registerEmployee = async (req, res) => {
       usedPF: 0,
       totalCL: 12,
       usedCL: 0,
+      faceEmbedding: isFaceProvided ? faceEmbedding : [],
+      faceRegistered: isFaceProvided,
+      faceImage: faceImage || "",
+      faceRegisteredAt: isFaceProvided ? new Date() : null,
       lastLogin: new Date(),
       loginCount: 1,
     });
@@ -134,7 +143,6 @@ const loginEmployee = async (req, res) => {
       // Fallback for legacy plain text passwords if any
       if (!isMatch && employee.password === password) {
         isMatch = true;
-        // Upgrade to hashed password
         const salt = await bcrypt.genSalt(10);
         employee.password = await bcrypt.hash(password, salt);
       }
@@ -168,6 +176,46 @@ const loginEmployee = async (req, res) => {
   }
 };
 
+// Enroll / Update Face Biometrics for Employee
+const enrollEmployeeFace = async (req, res) => {
+  try {
+    const { faceEmbedding, faceImage } = req.body;
+
+    if (!faceEmbedding || !Array.isArray(faceEmbedding) || faceEmbedding.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid face embedding data is required",
+      });
+    }
+
+    const employee = await Employee.findById(req.params.id || req.user.id);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
+
+    employee.faceEmbedding = faceEmbedding;
+    employee.faceRegistered = true;
+    if (faceImage) employee.faceImage = faceImage;
+    employee.faceRegisteredAt = new Date();
+    await employee.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Face enrolled successfully for Employee",
+      employee: sanitizeEmployee(employee),
+    });
+  } catch (error) {
+    console.error("enrollEmployeeFace error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Face enrollment failed",
+    });
+  }
+};
+
 // Get Current Authenticated Employee (from JWT)
 const getEmployeeProfile = async (req, res) => {
   try {
@@ -182,7 +230,7 @@ const getEmployeeProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      employee,
+      employee: sanitizeEmployee(employee),
     });
   } catch (error) {
     res.status(500).json({
@@ -200,7 +248,7 @@ const getAllEmployees = async (req, res) => {
     res.status(200).json({
       success: true,
       count: employees.length,
-      employees,
+      employees: employees.map(sanitizeEmployee),
     });
   } catch (error) {
     res.status(500).json({
@@ -224,7 +272,7 @@ const getEmployeeById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      employee,
+      employee: sanitizeEmployee(employee),
     });
   } catch (error) {
     res.status(500).json({
@@ -250,7 +298,7 @@ const updateAttendance = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Attendance Updated",
-      employee,
+      employee: sanitizeEmployee(employee),
     });
   } catch (error) {
     res.status(500).json({
@@ -279,7 +327,7 @@ const updatePFCL = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "PF / CL Updated",
-      employee,
+      employee: sanitizeEmployee(employee),
     });
   } catch (error) {
     res.status(500).json({
@@ -306,14 +354,14 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
-// Export
 module.exports = {
   registerEmployee,
   loginEmployee,
+  enrollEmployeeFace,
   getEmployeeProfile,
   getAllEmployees,
   getEmployeeById,
   updateAttendance,
   updatePFCL,
   deleteEmployee,
-};
+};

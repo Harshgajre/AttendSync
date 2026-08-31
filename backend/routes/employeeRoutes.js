@@ -5,6 +5,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const {
   registerEmployee,
   loginEmployee,
+  enrollEmployeeFace,
   getEmployeeProfile,
   getAllEmployees,
   getEmployeeById,
@@ -21,8 +22,9 @@ router.post("/login", loginEmployee);
 router.get("/me", authMiddleware, getEmployeeProfile);
 router.get("/all", getAllEmployees);
 router.get("/:id", getEmployeeById);
+router.post("/enroll-face/:id", authMiddleware, enrollEmployeeFace);
 router.put("/attendance/:id", authMiddleware, updateAttendance);
 router.put("/pfcl/:id", authMiddleware, updatePFCL);
 router.delete("/:id", authMiddleware, deleteEmployee);
 
-module.exports = router;
+module.exports = router;
