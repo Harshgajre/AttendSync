@@ -5,7 +5,7 @@ export default function EmployeeHome() {
 
       {/* Welcome */}
       <p className="text-green-400 text-lg mb-4">
-        Welcome Back 👋
+        Welcome Back
       </p>
 
       {/* Heading */}

@@ -185,7 +185,7 @@ export default function EmployeeDashboard({
         {/* HOME SECTION */}
         {activeSection === "home" && (
           <div>
-            <p className="text-green-400 text-base sm:text-lg mb-2">Welcome Back 👋</p>
+            <p className="text-green-400 text-base sm:text-lg mb-2">Welcome Back</p>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black mb-8 leading-tight">
               Hello, <span className="text-green-400">{userName}</span>
             </h1>
@@ -220,11 +220,11 @@ export default function EmployeeDashboard({
                     <span className="text-sm text-gray-300">Attendance Status:</span>
                     {slotData.isCurrentSlotAttended ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-500 text-emerald-300 font-bold rounded-full text-xs">
-                        ✓ Present (Marked)
+                        Present (Marked)
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500 text-amber-300 font-bold rounded-full text-xs">
-                        ● Not Marked
+                        Not Marked
                       </span>
                     )}
                   </div>
@@ -236,7 +236,6 @@ export default function EmployeeDashboard({
                     onClick={() => setShowFaceModal(true)}
                     className="w-full lg:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 px-8 py-4 rounded-2xl text-base font-black shadow-xl shadow-green-500/25 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-3"
                   >
-                    <span className="text-2xl">📸</span>
                     <span>Scan Face to Mark Attendance</span>
                   </button>
                 </div>
@@ -255,7 +254,7 @@ export default function EmployeeDashboard({
               <div className="bg-slate-900 border border-emerald-500/10 rounded-3xl p-6">
                 <p className="text-gray-400 text-sm font-medium mb-1">Biometric Status</p>
                 <h3 className="text-2xl font-black text-emerald-400">
-                  {currentUser.faceRegistered ? "Enrolled ✓" : "Pending"}
+                  {currentUser.faceRegistered ? "Enrolled" : "Pending"}
                 </h3>
               </div>
 
@@ -302,7 +301,6 @@ export default function EmployeeDashboard({
                 onClick={() => setShowFaceModal(true)}
                 className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 px-6 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-green-500/20 hover:scale-105 transition-all flex items-center gap-2"
               >
-                <span>📸</span>
                 <span>Scan Face Now</span>
               </button>
             </div>

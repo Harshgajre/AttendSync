@@ -75,7 +75,6 @@ export default function HomePage() {
             onClick={() => setShowFaceScanModal(true)}
             className="w-full group bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 p-5 rounded-3xl text-lg sm:text-xl font-black shadow-2xl shadow-emerald-500/30 hover:scale-[1.03] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 border border-emerald-300/30"
           >
-            <span className="text-3xl group-hover:rotate-12 transition-transform">📸</span>
             <span>Scan Face to Mark Attendance</span>
           </button>
           <p className="text-xs text-gray-400 mt-2">

@@ -148,7 +148,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
         setStatusMessage(data.message || "Attendance already marked for this slot.");
       } else {
         setScanState("success");
-        setStatusMessage(data.message || "Face Verified & Attendance Marked Successfully!");
+        setStatusMessage(data.message || "Face Verified & Attendance Marked Successfully");
         if (onAttendanceSuccess) {
           onAttendanceSuccess(data);
         }
@@ -200,21 +200,10 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
         {/* Card Body: Camera or Result Display */}
         {scanState === "success" || scanState === "already_marked" ? (
           <div className="w-full bg-slate-950/90 border border-white/10 rounded-3xl p-6 sm:p-7 flex flex-col items-center text-center">
-            {/* Status Icon */}
-            <div
-              className={`w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-xl mb-5 ${
-                scanState === "success"
-                  ? "bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-emerald-500/30 text-white"
-                  : "bg-gradient-to-tr from-amber-500 to-yellow-400 shadow-amber-500/30 text-white"
-              }`}
-            >
-              {scanState === "success" ? "✓" : "ℹ"}
-            </div>
-
             {/* Status Headline */}
             <h3 className="text-2xl font-black mb-1">
               {scanState === "success"
-                ? "Attendance Marked!"
+                ? "Attendance Marked"
                 : "Already Checked In"}
             </h3>
             <p
@@ -258,7 +247,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 font-medium">Match Confidence</span>
                 <span className="font-bold text-emerald-400">
-                  {resultData?.similarityScore || 98}% Verified ✓
+                  {resultData?.similarityScore || 98}% Verified
                 </span>
               </div>
             </div>
@@ -287,7 +276,6 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
             <div className="relative w-full aspect-[4/3] bg-slate-950 rounded-3xl overflow-hidden border border-emerald-500/20 flex items-center justify-center shadow-inner">
               {cameraError ? (
                 <div className="p-6 text-center text-red-400">
-                  <div className="text-4xl mb-3">⚠️</div>
                   <p className="text-sm font-semibold">{cameraError}</p>
                   <button
                     onClick={startCamera}
@@ -323,7 +311,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
                       <div className="absolute bottom-2 left-2 w-5 h-5 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg"></div>
                       <div className="absolute bottom-2 right-2 w-5 h-5 border-b-4 border-r-4 border-emerald-400 rounded-br-lg"></div>
 
-                      {/* Continuous Scanning Laser Line */}
+                      {/* Scanning Line */}
                       <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_20px_#34d399] animate-[scan_2s_ease-in-out_infinite]"></div>
                     </div>
                   </div>
@@ -342,8 +330,6 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
                     : "text-gray-300"
                 }`}
               >
-                {scanState === "scanning" && "⚡ "}
-                {scanState === "failed" && "❌ "}
                 {statusMessage}
               </p>
             </div>
@@ -369,7 +355,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
                     Verifying Identity...
                   </>
                 ) : (
-                  <>🔍 Scan & Mark Attendance</>
+                  <>Scan & Mark Attendance</>
                 )}
               </button>
             </div>

@@ -117,10 +117,10 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
         const result = await extractFaceDescriptor(videoRef.current);
         if (result.success) {
           setDetectStatus("detected");
-          setStatusMessage("Face Detected Perfectly! Click Capture.");
+          setStatusMessage("Face Detected. Click Capture.");
         } else if (result.reason === "MULTIPLE_FACES") {
           setDetectStatus("warning");
-          setStatusMessage("Multiple faces detected! Keep only one face in frame.");
+          setStatusMessage("Multiple faces detected. Keep only one face in frame.");
         } else if (result.reason === "NO_FACE") {
           setDetectStatus("ready");
           setStatusMessage("Position your face inside the frame.");
@@ -155,7 +155,7 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
       setCapturedPreview(snapshot);
       setCapturedEmbedding(result.descriptor);
       setDetectStatus("success");
-      setStatusMessage("Face Biometrics Captured Successfully! ✓");
+      setStatusMessage("Face Biometrics Captured Successfully");
       stopCamera();
     } catch (err) {
       console.error("Capture error:", err);
@@ -208,7 +208,7 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
             Scan & Register <span className="text-cyan-400">Face</span>
           </h2>
           <p className="text-gray-400 text-xs sm:text-sm mt-1">
-            Enroll your facial data for instant 1-click slot attendance
+            Enroll your facial data for slot attendance
           </p>
         </div>
 
@@ -216,7 +216,6 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
         <div className="relative w-full aspect-[4/3] bg-slate-950 rounded-3xl overflow-hidden border border-cyan-500/20 flex items-center justify-center shadow-inner">
           {cameraError ? (
             <div className="p-6 text-center text-red-400">
-              <div className="text-4xl mb-3">⚠️</div>
               <p className="text-sm font-semibold">{cameraError}</p>
               <button
                 onClick={startCamera}
@@ -234,7 +233,7 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-center p-4">
                 <span className="bg-emerald-500/90 text-white text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
-                  ✓ Face Biometrics Ready
+                  Face Biometrics Ready
                 </span>
               </div>
             </div>
@@ -248,7 +247,7 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
                 className="w-full h-full object-cover scale-x-[-1]"
               />
 
-              {/* High-tech Face Oval Guide */}
+              {/* Face Oval Guide */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div
                   className={`w-48 h-60 sm:w-56 sm:h-68 rounded-[50%] border-2 transition-all duration-300 relative flex items-center justify-center ${
@@ -267,7 +266,7 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
                   <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-400"></div>
                   <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-400"></div>
 
-                  {/* Scanning Laser Line */}
+                  {/* Scanning Line */}
                   <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_15px_#22d3ee] animate-[scan_2s_ease-in-out_infinite]"></div>
                 </div>
               </div>
@@ -286,9 +285,6 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
                 : "text-cyan-300"
             }`}
           >
-            {detectStatus === "detected" && "🟢 "}
-            {detectStatus === "warning" && "🔴 "}
-            {detectStatus === "detecting" && "⚡ "}
             {statusMessage}
           </p>
         </div>
@@ -302,14 +298,14 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
                 onClick={handleRetake}
                 className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 rounded-2xl font-bold text-gray-300 hover:text-white transition"
               >
-                ↺ Retake
+                Retake
               </button>
               <button
                 type="button"
                 onClick={handleConfirm}
                 className="flex-1 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 rounded-2xl font-bold text-white shadow-xl shadow-cyan-500/25 transition transform active:scale-95"
               >
-                Use This Face ✓
+                Use This Face
               </button>
             </>
           ) : (
@@ -333,7 +329,7 @@ export default function FaceEnrollmentModal({ isOpen, onClose, onEnrollComplete,
                     Scanning...
                   </>
                 ) : (
-                  <>📸 Capture Face</>
+                  <>Capture Face</>
                 )}
               </button>
             </>

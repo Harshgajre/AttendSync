@@ -109,7 +109,7 @@ export default function EmployeeLogin() {
 
     // Biometric face enrollment requirement
     if (!faceData || !faceData.faceEmbedding || faceData.faceEmbedding.length === 0) {
-      setError("Face enrollment is required! Please click 'Scan My Face' to register your biometric face profile.");
+      setError("Face enrollment is required. Please click 'Scan My Face' to register your biometric face profile.");
       return;
     }
 
@@ -212,10 +212,9 @@ export default function EmployeeLogin() {
               onClick={() => setShowFaceAttendanceModal(true)}
               className="w-full group bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-teal-500/20 hover:from-green-500/30 hover:to-teal-500/30 border border-green-400/30 hover:border-green-400 p-4 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg shadow-green-500/10"
             >
-              <span className="text-2xl group-hover:scale-110 transition-transform">📸</span>
-              <div className="text-left">
+              <div className="text-center">
                 <p className="text-sm font-black text-emerald-300">Scan Face to Mark Attendance</p>
-                <p className="text-[11px] text-gray-400">Instant 1-click slot check-in</p>
+                <p className="text-[11px] text-gray-400">Instant slot check-in</p>
               </div>
             </button>
             <div className="relative my-6 flex items-center justify-center">
@@ -307,8 +306,8 @@ export default function EmployeeLogin() {
                     className="w-14 h-14 rounded-xl object-cover border border-emerald-400"
                   />
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                      <span>✓</span> Face Enrolled Successfully
+                    <p className="text-xs font-bold text-emerald-400">
+                      Face Enrolled Successfully
                     </p>
                     <p className="text-[11px] text-gray-400">Biometric template registered</p>
                   </div>
@@ -324,10 +323,9 @@ export default function EmployeeLogin() {
                 <button
                   type="button"
                   onClick={() => setShowFaceEnrollModal(true)}
-                  className="w-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-emerald-400/40 hover:border-emerald-400 text-emerald-300 py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition duration-200"
+                  className="w-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-emerald-400/40 hover:border-emerald-400 text-emerald-300 py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center transition duration-200"
                 >
-                  <span>📸</span>
-                  <span>Scan My Face</span>
+                  Scan My Face
                 </button>
               )}
             </div>
@@ -442,7 +440,7 @@ export default function EmployeeLogin() {
         isOpen={showFaceAttendanceModal}
         onClose={() => setShowFaceAttendanceModal(false)}
         onAttendanceSuccess={() => {
-          // Handled inside modal with rich result feedback
+          // Handled inside modal
         }}
       />
     </div>
