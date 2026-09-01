@@ -7,6 +7,7 @@ import LeaveApprovalControl from "./LeaveApprovalControl";
 import ManageStudents from "./ManageStudents";
 import ManageEmployees from "./ManageEmployees";
 import ManageSlots from "./ManageSlots";
+import ManageTimetable from "./ManageTimetable";
 import { getApiUrl } from "../../config/api";
 
 export default function AdminDashboard({ onLogout }) {
@@ -92,6 +93,7 @@ export default function AdminDashboard({ onLogout }) {
           <div className="space-y-2.5">
             {[
               { id: "dashboard", label: "Dashboard" },
+              { id: "timetable", label: "Timetable / Lectures 📅" },
               { id: "slots", label: "Attendance Slots 🕒" },
               { id: "students", label: "Manage Students" },
               { id: "employees", label: "Manage Employees" },
@@ -143,6 +145,7 @@ export default function AdminDashboard({ onLogout }) {
       {/* Main Content */}
       <div className="flex-1 overflow-x-hidden p-5 sm:p-8 lg:p-10 pt-28 lg:pt-10 overflow-y-auto">
         <div className="mb-10">
+          {activeSection === "timetable" && <ManageTimetable />}
           {activeSection === "slots" && <ManageSlots />}
           {activeSection === "students" && <ManageStudents />}
           {activeSection === "employees" && <ManageEmployees />}

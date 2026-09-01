@@ -1,8 +1,11 @@
 const mongoose = require("mongoose");
 const Attendance = require("../models/Attendance");
 const AttendanceSlot = require("../models/AttendanceSlot");
+const Timetable = require("../models/Timetable");
+const AttendanceSession = require("../models/AttendanceSession");
 const Student = require("../models/Student");
 const Employee = require("../models/Employee");
+const { getCurrentLecture } = require("./timetableController");
 
 // Calculate Euclidean Distance between two 128-dimensional vectors
 const calculateEuclideanDistance = (embedding1, embedding2) => {
@@ -124,8 +127,142 @@ const markAttendanceByFaceScan = async (req, res) => {
 
     const matchedUser = bestMatch.user;
     const similarityPercentage = Math.max(0, Math.min(100, Math.round((1 - lowestDistance) * 100)));
+    const todayDate = getTodayDateStr();
+    const formattedCheckIn = getCurrentTimeFormatted();
 
-    // Resolve current active slot
+    // ─── CHECK TIMETABLE SESSION (Priority for lectures) ───
+    const { currentLecture } = await getCurrentLecture();
+    if (currentLecture) {
+      const activeSession = await AttendanceSession.findOne({
+        timetableEntryId: currentLecture._id,
+        date: todayDate,
+        status: "ACTIVE",
+      });
+
+      if (bestMatch.userType === "Student") {
+        if (!activeSession) {
+          return res.status(400).json({
+            success: false,
+            faceMatched: true,
+            user: {
+              id: matchedUser._id,
+              name: matchedUser.name,
+              role: "Student",
+              collegeOrCompany: matchedUser.college,
+            },
+            message: `Lecture '${currentLecture.subjectName}' is ongoing, but the faculty has not started the attendance session yet.`,
+            currentLecture: {
+              subjectName: currentLecture.subjectName,
+              subjectCode: currentLecture.subjectCode,
+              startTime: currentLecture.startTime,
+              endTime: currentLecture.endTime,
+              faculty: currentLecture.facultyName,
+            },
+          });
+        }
+
+        // Check eligibility
+        if (activeSession.semester && matchedUser.semester && activeSession.semester !== matchedUser.semester) {
+          return res.status(403).json({
+            success: false,
+            faceMatched: true,
+            eligible: false,
+            message: `You are not eligible for this lecture (Semester ${activeSession.semester}). You are in Semester ${matchedUser.semester}.`,
+            user: { id: matchedUser._id, name: matchedUser.name },
+            similarityScore: similarityPercentage,
+          });
+        }
+
+        // Duplicate Check for student + date + timetableEntryId
+        const existingTimetableAttendance = await Attendance.findOne({
+          userId: matchedUser._id,
+          date: todayDate,
+          timetableEntryId: currentLecture._id,
+        });
+
+        if (existingTimetableAttendance) {
+          return res.status(200).json({
+            success: true,
+            alreadyMarked: true,
+            faceMatched: true,
+            message: `Attendance already marked for ${activeSession.subjectName}`,
+            user: {
+              id: matchedUser._id,
+              name: matchedUser.name,
+              role: "Student",
+              collegeOrCompany: matchedUser.college,
+              faceImage: matchedUser.faceImage || "",
+            },
+            lecture: {
+              subjectName: activeSession.subjectName,
+              subjectCode: activeSession.subjectCode,
+              startTime: activeSession.startTime,
+              endTime: activeSession.endTime,
+              faculty: activeSession.facultyName,
+            },
+            attendance: existingTimetableAttendance,
+            similarityScore: similarityPercentage,
+          });
+        }
+
+        // Create new Timetable Attendance record
+        const newTimetableAttendance = new Attendance({
+          userId: matchedUser._id,
+          userModel: "Student",
+          userName: matchedUser.name,
+          userRole: "Student",
+          collegeOrCompany: matchedUser.college || "",
+          date: todayDate,
+          attendanceSessionId: activeSession._id,
+          timetableEntryId: currentLecture._id,
+          subjectCode: activeSession.subjectCode,
+          subjectName: activeSession.subjectName,
+          facultyName: activeSession.facultyName,
+          lectureStartTime: activeSession.startTime,
+          lectureEndTime: activeSession.endTime,
+          room: activeSession.room || "",
+          semester: matchedUser.semester || "",
+          division: matchedUser.division || "",
+          batch: matchedUser.batch || "",
+          checkInTime: formattedCheckIn,
+          timestamp: new Date(),
+          verificationMethod: "FACE",
+          status: "Present",
+          similarityScore: similarityPercentage,
+          attendanceMode: "TIMETABLE",
+        });
+
+        await newTimetableAttendance.save();
+        await Student.findByIdAndUpdate(matchedUser._id, { $inc: { attendance: 1 } });
+        await AttendanceSession.findByIdAndUpdate(activeSession._id, { $inc: { presentCount: 1 } });
+
+        return res.status(201).json({
+          success: true,
+          alreadyMarked: false,
+          faceMatched: true,
+          message: `Face Verified Successfully! Attendance marked for ${activeSession.subjectName}.`,
+          user: {
+            id: matchedUser._id,
+            name: matchedUser.name,
+            role: "Student",
+            collegeOrCompany: matchedUser.college || "",
+            faceImage: matchedUser.faceImage || "",
+          },
+          lecture: {
+            subjectName: activeSession.subjectName,
+            subjectCode: activeSession.subjectCode,
+            startTime: activeSession.startTime,
+            endTime: activeSession.endTime,
+            faculty: activeSession.facultyName,
+            room: activeSession.room,
+          },
+          attendance: newTimetableAttendance,
+          similarityScore: similarityPercentage,
+        });
+      }
+    }
+
+    // ─── FALLBACK: LEGACY SLOT-BASED ATTENDANCE ───
     const { activeSlot, currentTimeStr, isFallback } = await getActiveSlotForCurrentTime();
 
     if (!activeSlot) {
@@ -139,14 +276,10 @@ const markAttendanceByFaceScan = async (req, res) => {
           collegeOrCompany: bestMatch.collegeOrCompany,
           faceImage: matchedUser.faceImage || "",
         },
-        message: "No active attendance slots configured currently. Please contact administrator.",
+        message: "No active lecture session or attendance slot configured currently.",
       });
     }
 
-    const todayDate = getTodayDateStr();
-    const formattedCheckIn = getCurrentTimeFormatted();
-
-    // RULE 5: ONE USER + ONE DATE + ONE SLOT = ONLY ONE ATTENDANCE RECORD
     // Check if attendance is already marked for this user + date + slotId
     const existingAttendance = await Attendance.findOne({
       userId: matchedUser._id,
@@ -193,6 +326,7 @@ const markAttendanceByFaceScan = async (req, res) => {
       verificationMethod: "FACE",
       status: "Present",
       similarityScore: similarityPercentage,
+      attendanceMode: "LEGACY_SLOT",
     });
 
     await newAttendance.save();
@@ -224,7 +358,6 @@ const markAttendanceByFaceScan = async (req, res) => {
       },
       attendance: newAttendance,
       similarityScore: similarityPercentage,
-      note: isFallback ? "Marked under current active/test slot" : undefined,
     });
   } catch (error) {
     console.error("markAttendanceByFaceScan error:", error);

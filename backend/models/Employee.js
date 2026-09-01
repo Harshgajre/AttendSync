@@ -12,6 +12,16 @@ const employeeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    role: {
+      type: String,
+      default: "faculty",
+      enum: ["faculty", "hod"],
+    },
+    department: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     password: {
       type: String,
       required: true,

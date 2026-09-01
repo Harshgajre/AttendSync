@@ -10,11 +10,8 @@ export default function StudentDashboard({
   userName,
   role,
 }) {
-  // Active Section
   const [activeSection, setActiveSection] = useState("home");
-  // Mobile Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Face Attendance Modal
   const [showFaceModal, setShowFaceModal] = useState(false);
 
   // User details from localStorage
@@ -26,60 +23,74 @@ export default function StudentDashboard({
     }
   })();
 
-  // Live Slot-Wise Attendance Data
-  const [slotData, setSlotData] = useState({
-    activeSlot: null,
-    isCurrentSlotAttended: false,
-    totalSlotsToday: 0,
-    attendedSlotsCount: 0,
-    slotStatusList: [],
+  // Live Timetable Attendance State
+  const [timetableData, setTimetableData] = useState({
+    currentLecture: null,
+    activeSession: null,
+    sessionStarted: false,
+    isCurrentLectureAttended: false,
+    totalLecturesToday: 0,
+    attendedLecturesCount: 0,
+    lectureStatus: [],
+    day: "",
+    currentTime: "",
     records: [],
   });
-  const [attendanceHistory, setAttendanceHistory] = useState([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
 
-  // Fetch today's slot attendance
-  const fetchSlotAttendance = async () => {
+  const [attendanceHistory, setAttendanceHistory] = useState([]);
+  const [loadingTimetable, setLoadingTimetable] = useState(false);
+
+  // Fetch today's timetable-based attendance status
+  const fetchTimetableAttendance = async () => {
     if (!currentUser._id) return;
     try {
-      setLoadingSlots(true);
-      const res = await fetch(getApiUrl(`/api/attendance/today/${currentUser._id}`));
+      setLoadingTimetable(true);
+
+      // 1. Today's timetable status
+      const res = await fetch(
+        getApiUrl(`/api/attendance-sessions/student-today/${currentUser._id}`)
+      );
       const data = await res.json();
       if (data.success) {
-        setSlotData({
-          activeSlot: data.activeSlot,
-          isCurrentSlotAttended: data.isCurrentSlotAttended,
-          totalSlotsToday: data.totalSlotsToday,
-          attendedSlotsCount: data.attendedSlotsCount,
-          slotStatusList: data.slotStatusList || [],
+        setTimetableData({
+          currentLecture: data.currentLecture,
+          activeSession: data.activeSession,
+          sessionStarted: data.sessionStarted,
+          isCurrentLectureAttended: data.isCurrentLectureAttended,
+          totalLecturesToday: data.totalLecturesToday,
+          attendedLecturesCount: data.attendedLecturesCount,
+          lectureStatus: data.lectureStatus || [],
+          day: data.day,
+          currentTime: data.currentTime,
           records: data.records || [],
         });
       }
 
-      // Also fetch complete attendance history
-      const historyRes = await fetch(getApiUrl(`/api/attendance/history/${currentUser._id}`));
+      // 2. Full attendance history
+      const historyRes = await fetch(
+        getApiUrl(`/api/attendance-sessions/student-history/${currentUser._id}`)
+      );
       const historyData = await historyRes.json();
       if (historyData.success) {
         setAttendanceHistory(historyData.records || []);
       }
     } catch (err) {
-      console.error("Failed to load slot attendance:", err);
+      console.error("Failed to load student timetable attendance:", err);
     } finally {
-      setLoadingSlots(false);
+      setLoadingTimetable(false);
     }
   };
 
   useEffect(() => {
-    fetchSlotAttendance();
-    const interval = setInterval(fetchSlotAttendance, 10000);
+    fetchTimetableAttendance();
+    const interval = setInterval(fetchTimetableAttendance, 6000);
     return () => clearInterval(interval);
   }, [currentUser._id]);
 
-  // Subjects
+  // Manual Subject Attendance State
   const [subjectName, setSubjectName] = useState("");
   const [subjects, setSubjects] = useState([]);
 
-  // Attendance
   const currentDate = new Date();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [month, setMonth] = useState(currentDate.getMonth());
@@ -87,13 +98,12 @@ export default function StudentDashboard({
   const [selectedDate, setSelectedDate] = useState(null);
   const [attendanceData, setAttendanceData] = useState({});
 
-  // Semester Data
+  // Semester Dates
   const [semesterData, setSemesterData] = useState({
     start: "",
     end: "",
   });
 
-  // Load Semester Data
   useEffect(() => {
     const savedSemester = localStorage.getItem(`semesterDates-${userName}`);
     if (savedSemester) {
@@ -101,23 +111,15 @@ export default function StudentDashboard({
     }
   }, [userName]);
 
-  // Months
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
   ];
-
-  // Days
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  // Total Days
   const totalDays = new Date(year, month + 1, 0).getDate();
-  // First Day
   const firstDay = new Date(year, month, 1).getDay();
-  // Blank Spaces
   const blanks = Array(firstDay).fill(null);
 
-  // Add Subject
   const handleAddSubject = () => {
     if (!subjectName.trim()) return;
     const alreadyExists = subjects.find(
@@ -131,12 +133,10 @@ export default function StudentDashboard({
     setSubjectName("");
   };
 
-  // Remove Subject
   const handleRemoveSubject = (subject) => {
     setSubjects(subjects.filter((sub) => sub !== subject));
   };
 
-  // Present
   const handlePresent = () => {
     if (!selectedSubject || !selectedDate) {
       alert("Select Subject & Date");
@@ -148,7 +148,6 @@ export default function StudentDashboard({
     });
   };
 
-  // Absent
   const handleAbsent = () => {
     if (!selectedSubject || !selectedDate) {
       alert("Select Subject & Date");
@@ -160,7 +159,6 @@ export default function StudentDashboard({
     });
   };
 
-  // Save Attendance
   const handleSaveAttendance = () => {
     if (!selectedSubject || !selectedDate) {
       alert("Select Subject & Date");
@@ -169,7 +167,6 @@ export default function StudentDashboard({
     alert("Attendance Saved Successfully");
   };
 
-  // Overview Records
   const attendanceRecords = Object.entries(attendanceData).map(([key, value]) => {
     const parts = key.split("-");
     return {
@@ -178,6 +175,9 @@ export default function StudentDashboard({
       status: value,
     };
   });
+
+  const curLecture = timetableData.currentLecture;
+  const isSessionActive = timetableData.sessionStarted;
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white">
@@ -209,8 +209,8 @@ export default function StudentDashboard({
           {/* Nav Items */}
           <div className="space-y-3">
             {[
-              { id: "home", label: "Home" },
-              { id: "slots", label: "Slot-Wise Attendance" },
+              { id: "home", label: "Dashboard & Live Lecture" },
+              { id: "timetable", label: "Lecture-Wise Attendance" },
               { id: "subjects", label: "Add / Remove Subject" },
               { id: "fill", label: "Fill Subject Attendance" },
               { id: "overview", label: "Overview of Attendance" },
@@ -253,6 +253,7 @@ export default function StudentDashboard({
               <h2 className="text-lg font-black truncate">{userName}</h2>
               <p className="text-xs text-cyan-400">
                 {currentUser.faceRegistered ? "Face Enrolled ✓" : "Student"}
+                {currentUser.semester ? ` • Sem ${currentUser.semester}` : ""}
               </p>
             </div>
           </div>
@@ -271,58 +272,109 @@ export default function StudentDashboard({
         {/* HOME SECTION */}
         {activeSection === "home" && (
           <div>
-            <p className="text-cyan-400 text-base sm:text-lg mb-2">Welcome Back</p>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black mb-8 leading-tight">
-              Hello, <span className="text-cyan-400">{userName}</span>
-            </h1>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
+              <div>
+                <p className="text-cyan-400 text-base font-semibold">
+                  {timetableData.day ? `${timetableData.day} • ${timetableData.currentTime}` : "Live Timetable System"}
+                </p>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight">
+                  Hello, <span className="text-cyan-400">{userName}</span>
+                </h1>
+              </div>
 
-            {/* LIVE ACTIVE SLOT HERO WIDGET */}
+              {currentUser.semester && (
+                <span className="px-4 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black uppercase tracking-wider">
+                  Semester {currentUser.semester} • Div {currentUser.division || "A"}
+                </span>
+              )}
+            </div>
+
+            {/* LIVE ACTIVE LECTURE HERO WIDGET */}
             <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-cyan-500/30 rounded-3xl p-6 sm:p-8 mb-8 shadow-xl shadow-cyan-500/5 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
               <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
-                <div>
+                <div className="max-w-2xl">
                   <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 text-xs font-bold uppercase tracking-wider mb-3">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    Live Slot Engine
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                    Current Scheduled Lecture
                   </div>
 
-                  <h2 className="text-2xl sm:text-3xl font-black text-white">
-                    Current Slot:{" "}
-                    <span className="text-cyan-400">
-                      {slotData.activeSlot
-                        ? slotData.activeSlot.slotName
-                        : "No Active Slot Configured"}
-                    </span>
-                  </h2>
+                  {curLecture ? (
+                    <div>
+                      <h2 className="text-2xl sm:text-3xl font-black text-white">
+                        {curLecture.subjectName}{" "}
+                        <span className="text-cyan-400 text-xl font-mono font-bold">
+                          ({curLecture.subjectCode})
+                        </span>
+                      </h2>
 
-                  {slotData.activeSlot && (
-                    <p className="text-gray-400 text-sm mt-1">
-                      Time Window: {slotData.activeSlot.startTime} – {slotData.activeSlot.endTime}
-                    </p>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-300 mt-2">
+                        <span className="font-semibold text-white">⏰ Time: {curLecture.startTime} – {curLecture.endTime}</span>
+                        {curLecture.room && <span>📍 {curLecture.room}</span>}
+                        {curLecture.facultyName && <span>👤 Faculty: {curLecture.facultyName}</span>}
+                        {curLecture.lectureType && (
+                          <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-bold">
+                            {curLecture.lectureType}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Status Badges */}
+                      <div className="flex flex-wrap items-center gap-3 mt-4">
+                        <span className="text-xs text-gray-400 font-bold uppercase">Session Status:</span>
+                        {isSessionActive ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-500 text-emerald-300 font-bold rounded-full text-xs animate-pulse">
+                            ● Session Active (Ready for scan)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500 text-amber-300 font-bold rounded-full text-xs">
+                            Waiting for Faculty to start session
+                          </span>
+                        )}
+
+                        <span className="text-xs text-gray-400 font-bold uppercase ml-2">My Attendance:</span>
+                        {timetableData.isCurrentLectureAttended ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-500 text-emerald-300 font-bold rounded-full text-xs">
+                            ✓ Present (Marked)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 border border-red-500 text-red-300 font-bold rounded-full text-xs">
+                            Not Marked Yet
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h2 className="text-2xl sm:text-3xl font-black text-white">
+                        No Lecture Currently Scheduled
+                      </h2>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Currently outside lecture hours, during recess/lunch, or no lectures are scheduled at this time.
+                      </p>
+                    </div>
                   )}
-
-                  <div className="flex items-center gap-3 mt-4">
-                    <span className="text-sm text-gray-300">Attendance Status:</span>
-                    {slotData.isCurrentSlotAttended ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 border border-emerald-500 text-emerald-300 font-bold rounded-full text-xs">
-                        Present (Marked)
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500 text-amber-300 font-bold rounded-full text-xs">
-                        Not Marked
-                      </span>
-                    )}
-                  </div>
                 </div>
 
                 {/* Quick Face Scan CTA Button */}
                 <div className="w-full lg:w-auto">
                   <button
                     onClick={() => setShowFaceModal(true)}
-                    className="w-full lg:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-8 py-4 rounded-2xl text-base font-black shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-3"
+                    disabled={!isSessionActive}
+                    className={`w-full lg:w-auto px-8 py-4 rounded-2xl text-base font-black shadow-xl transition-all duration-300 flex items-center justify-center gap-3 ${
+                      isSessionActive
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-emerald-500/25 hover:scale-105 active:scale-95 cursor-pointer"
+                        : "bg-slate-800 text-gray-400 border border-white/10 cursor-not-allowed opacity-75"
+                    }`}
                   >
-                    <span>Scan Face to Mark Attendance</span>
+                    <span>
+                      {isSessionActive
+                        ? "📸 Scan Face to Mark Attendance"
+                        : curLecture
+                        ? "Waiting for Faculty to Start"
+                        : "No Lecture Active"}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -331,21 +383,21 @@ export default function StudentDashboard({
             {/* Quick Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
               <div className="bg-slate-900 border border-cyan-500/10 rounded-3xl p-6">
-                <p className="text-gray-400 text-sm font-medium mb-1">Slots Attended Today</p>
+                <p className="text-gray-400 text-sm font-medium mb-1">Lectures Attended Today</p>
                 <h3 className="text-4xl font-black text-cyan-400">
-                  {slotData.attendedSlotsCount} / {slotData.totalSlotsToday}
+                  {timetableData.attendedLecturesCount} / {timetableData.totalLecturesToday}
                 </h3>
               </div>
 
               <div className="bg-slate-900 border border-emerald-500/10 rounded-3xl p-6">
-                <p className="text-gray-400 text-sm font-medium mb-1">Biometric Status</p>
+                <p className="text-gray-400 text-sm font-medium mb-1">Face Biometric Status</p>
                 <h3 className="text-2xl font-black text-emerald-400">
-                  {currentUser.faceRegistered ? "Enrolled" : "Pending"}
+                  {currentUser.faceRegistered ? "Enrolled ✓" : "Pending"}
                 </h3>
               </div>
 
               <div className="bg-slate-900 border border-purple-500/10 rounded-3xl p-6">
-                <p className="text-gray-400 text-sm font-medium mb-1">Total Lifetime Checks</p>
+                <p className="text-gray-400 text-sm font-medium mb-1">Total Verified Attendances</p>
                 <h3 className="text-4xl font-black text-purple-400">
                   {attendanceHistory.length}
                 </h3>
@@ -382,60 +434,78 @@ export default function StudentDashboard({
           </div>
         )}
 
-        {/* SLOT-WISE ATTENDANCE SECTION */}
-        {activeSection === "slots" && (
+        {/* LECTURE-WISE TIMETABLE ATTENDANCE SECTION */}
+        {activeSection === "timetable" && (
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black">
-                  Slot-Wise <span className="text-cyan-400">Attendance</span>
+                  Lecture-Wise <span className="text-cyan-400">Attendance</span>
                 </h1>
                 <p className="text-gray-400 text-sm sm:text-base mt-1">
-                  Today's schedule & your verified attendance history
+                  Today's class schedule ({timetableData.day || "Today"}) & your biometric attendance records
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowFaceModal(true)}
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-6 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20 hover:scale-105 transition-all flex items-center gap-2"
-              >
-                <span>Scan Face Now</span>
-              </button>
+              {isSessionActive && (
+                <button
+                  onClick={() => setShowFaceModal(true)}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-6 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20 hover:scale-105 transition-all flex items-center gap-2"
+                >
+                  <span>Scan Face Now</span>
+                </button>
+              )}
             </div>
 
-            {/* Today's Slots Cards Grid */}
-            <h2 className="text-xl font-black mb-4 text-gray-200">Today's Attendance Schedule</h2>
+            {/* Today's Lectures Cards Grid */}
+            <h2 className="text-xl font-black mb-4 text-gray-200">Today's Lecture Schedule</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-10">
-              {slotData.slotStatusList.map((slot, index) => (
+              {timetableData.lectureStatus.map((lec, index) => (
                 <div
-                  key={slot.slotId || index}
+                  key={lec.lectureId || index}
                   className={`bg-slate-900 rounded-3xl p-6 border transition-all duration-300 ${
-                    slot.isCurrentActive
-                      ? "border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.15)]"
+                    lec.isCurrentActive
+                      ? "border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.15)] ring-1 ring-cyan-400/40"
                       : "border-white/10"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs uppercase font-bold text-gray-400">
-                      {slot.startTime} – {slot.endTime}
+                    <span className="text-xs uppercase font-mono font-bold text-gray-400">
+                      {lec.startTime} – {lec.endTime}
                     </span>
-                    {slot.isCurrentActive && (
+                    {lec.isCurrentActive && (
                       <span className="bg-cyan-500/20 text-cyan-300 text-[10px] font-black uppercase px-2.5 py-1 rounded-full border border-cyan-400/30">
                         Active Now
                       </span>
                     )}
                   </div>
 
-                  <h3 className="text-xl font-bold text-white mb-4">{slot.slotName}</h3>
+                  <h3 className="text-lg font-bold text-white mb-1">{lec.subjectName}</h3>
+                  <p className="text-xs text-cyan-400 font-mono mb-3">{lec.subjectCode}</p>
+
+                  <div className="text-xs text-gray-400 space-y-1 mb-4">
+                    <div className="flex justify-between">
+                      <span>Faculty:</span>
+                      <span className="text-gray-300 font-medium">{lec.facultyName || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Room:</span>
+                      <span className="text-gray-300 font-medium">{lec.room || "—"}</span>
+                    </div>
+                  </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                    <span className="text-xs text-gray-400">Status</span>
-                    {slot.isAttended ? (
+                    <span className="text-xs text-gray-400 font-medium">Status</span>
+                    {lec.isAttended ? (
                       <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                        ✓ Present ({slot.checkInTime})
+                        ✓ Present ({lec.checkInTime})
                       </span>
-                    ) : slot.isCurrentActive ? (
-                      <span className="text-xs font-bold text-amber-400">● Not Marked Yet</span>
+                    ) : lec.isCurrentActive ? (
+                      lec.hasActiveSession ? (
+                        <span className="text-xs font-bold text-amber-400">● Session Active (Not Marked)</span>
+                      ) : (
+                        <span className="text-xs font-bold text-gray-400">Waiting for Faculty</span>
+                      )
                     ) : (
                       <span className="text-xs text-gray-500">Pending</span>
                     )}
@@ -445,49 +515,58 @@ export default function StudentDashboard({
             </div>
 
             {/* Attendance Log History Table */}
-            <h2 className="text-xl font-black mb-4 text-gray-200">Recent Face Attendance Records</h2>
-            <div className="bg-slate-900 rounded-3xl overflow-hidden border border-white/10">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-800/80 text-gray-300 text-xs uppercase tracking-wider">
-                    <th className="p-4 pl-6">Date</th>
-                    <th className="p-4">Slot</th>
-                    <th className="p-4">Check-In Time</th>
-                    <th className="p-4">Verification</th>
-                    <th className="p-4 pr-6">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {attendanceHistory.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="p-8 text-center text-gray-500">
-                        No face attendance records found yet. Scan your face to create your first record!
-                      </td>
+            <h2 className="text-xl font-black mb-4 text-gray-200">Recent Facial Verification Records</h2>
+            <div className="bg-slate-900 rounded-3xl overflow-hidden border border-white/10 shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-800/80 text-gray-300 text-xs uppercase tracking-wider">
+                      <th className="p-4 pl-6">Date</th>
+                      <th className="p-4">Subject</th>
+                      <th className="p-4">Faculty</th>
+                      <th className="p-4">Time Window</th>
+                      <th className="p-4">Check-In Time</th>
+                      <th className="p-4 pr-6">Status</th>
                     </tr>
-                  ) : (
-                    attendanceHistory.slice(0, 10).map((record, index) => (
-                      <tr
-                        key={record._id || index}
-                        className="border-t border-slate-800 hover:bg-slate-800/40 transition"
-                      >
-                        <td className="p-4 pl-6 font-semibold">{record.date}</td>
-                        <td className="p-4 font-bold text-cyan-300">{record.slotName}</td>
-                        <td className="p-4 text-gray-300">{record.checkInTime}</td>
-                        <td className="p-4">
-                          <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 rounded-full text-xs font-bold">
-                            {record.verificationMethod || "FACE"}
-                          </span>
-                        </td>
-                        <td className="p-4 pr-6">
-                          <span className="text-emerald-400 font-bold flex items-center gap-1">
-                            ✓ {record.status}
-                          </span>
+                  </thead>
+                  <tbody className="text-sm">
+                    {attendanceHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-gray-500">
+                          No lecture attendance records found yet. Scan your face during an active class to record attendance!
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      attendanceHistory.slice(0, 15).map((record, index) => (
+                        <tr
+                          key={record._id || index}
+                          className="border-t border-slate-800 hover:bg-slate-800/40 transition"
+                        >
+                          <td className="p-4 pl-6 font-semibold text-gray-300">{record.date}</td>
+                          <td className="p-4 font-bold text-cyan-300">
+                            {record.subjectName || record.slotName}
+                            {record.subjectCode && (
+                              <span className="text-xs text-gray-400 block font-normal font-mono">
+                                {record.subjectCode}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4 text-gray-300">{record.facultyName || "—"}</td>
+                          <td className="p-4 text-xs font-mono text-gray-400">
+                            {record.lectureStartTime ? `${record.lectureStartTime} – ${record.lectureEndTime}` : "—"}
+                          </td>
+                          <td className="p-4 text-white font-medium">{record.checkInTime}</td>
+                          <td className="p-4 pr-6">
+                            <span className="text-emerald-400 font-bold flex items-center gap-1">
+                              ✓ {record.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -662,15 +741,15 @@ export default function StudentDashboard({
         )}
       </div>
 
-      {/* Face Attendance Modal */}
+      {/* Student Face Attendance Modal */}
       <FaceAttendanceModal
         isOpen={showFaceModal}
         onClose={() => {
           setShowFaceModal(false);
-          fetchSlotAttendance();
+          fetchTimetableAttendance();
         }}
         onAttendanceSuccess={() => {
-          fetchSlotAttendance();
+          fetchTimetableAttendance();
         }}
       />
     </div>

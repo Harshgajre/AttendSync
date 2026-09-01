@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const seedAdmin = require("./utils/seedAdmin");
 const seedSlots = require("./utils/seedSlots");
+const seedTimetable = require("./utils/seedTimetable");
 
 // Config
 dotenv.config();
@@ -70,6 +71,8 @@ const leaveRoutes = require("./routes/leaveRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const slotRoutes = require("./routes/slotRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
+const timetableRoutes = require("./routes/timetableRoutes");
+const attendanceSessionRoutes = require("./routes/attendanceSessionRoutes");
 
 // Route Registrations
 app.use("/api/students", studentRoutes);
@@ -80,6 +83,8 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/slots", slotRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/timetable", timetableRoutes);
+app.use("/api/attendance-sessions", attendanceSessionRoutes);
 
 // 404 Handler
 app.use((req, res) => {
@@ -96,6 +101,7 @@ const startServer = async () => {
   await connectDB();
   await seedAdmin();
   await seedSlots();
+  await seedTimetable();
 
   app.listen(PORT, () => {
     console.log("");

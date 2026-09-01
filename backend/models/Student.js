@@ -25,6 +25,16 @@ const studentSchema = new mongoose.Schema(
       required: true,
       default: "1",
     },
+    division: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    batch: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     // Face Recognition Biometric Data
     faceEmbedding: {
       type: [Number], // 128-dimensional float array

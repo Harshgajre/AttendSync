@@ -31,15 +31,70 @@ const attendanceSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
+    // --- TIMETABLE-BASED FIELDS (new) ---
+    attendanceSessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AttendanceSession",
+      default: null,
+    },
+    timetableEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Timetable",
+      default: null,
+    },
+    subjectCode: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    subjectName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    facultyName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    lectureStartTime: {
+      type: String,
+      default: "",
+    },
+    lectureEndTime: {
+      type: String,
+      default: "",
+    },
+    room: {
+      type: String,
+      default: "",
+    },
+    semester: {
+      type: String,
+      default: "",
+    },
+    division: {
+      type: String,
+      default: "",
+    },
+    batch: {
+      type: String,
+      default: "",
+    },
+
+    // --- LEGACY SLOT FIELDS (kept for backward compatibility) ---
     slotId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AttendanceSlot",
-      required: true,
+      default: null,
     },
     slotName: {
       type: String,
-      required: true,
+      default: "",
     },
+
+    // --- COMMON FIELDS ---
     checkInTime: {
       type: String, // e.g. "09:35 AM"
       required: true,
@@ -62,13 +117,35 @@ const attendanceSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Track attendance mode
+    attendanceMode: {
+      type: String,
+      default: "TIMETABLE", // "TIMETABLE" or "LEGACY_SLOT"
+      enum: ["TIMETABLE", "LEGACY_SLOT"],
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Compound Unique Index: Prevents duplicate attendance for the same user on the same date for the same slot
-attendanceSchema.index({ userId: 1, date: 1, slotId: 1 }, { unique: true });
+// Compound Unique Index for TIMETABLE mode: Prevents duplicate attendance for same student + date + timetable lecture
+// Uses a partial filter expression so it only applies when timetableEntryId is set
+attendanceSchema.index(
+  { userId: 1, date: 1, timetableEntryId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { timetableEntryId: { $ne: null } },
+  }
+);
+
+// Legacy slot unique index (kept for backward compatibility)
+attendanceSchema.index(
+  { userId: 1, date: 1, slotId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { slotId: { $ne: null }, attendanceMode: "LEGACY_SLOT" },
+  }
+);
 
 module.exports = mongoose.model("Attendance", attendanceSchema);
