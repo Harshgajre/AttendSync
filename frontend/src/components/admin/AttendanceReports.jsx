@@ -86,20 +86,20 @@ export default function AttendanceReports() {
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
         <div className="bg-slate-900 border border-cyan-500/10 rounded-3xl p-6">
-          <p className="text-gray-400 mb-2 text-sm font-semibold">Total Registered Users</p>
-          <h2 className="text-4xl font-black text-cyan-400">{stats?.totalUsers || 0}</h2>
+          <p className="text-gray-400 mb-2 text-sm font-semibold">Total Registered Students</p>
+          <h2 className="text-4xl font-black text-cyan-400">{stats?.totalStudents || stats?.totalUsers || 0}</h2>
           <p className="text-xs text-gray-400 mt-2">
-            {stats?.totalStudents || 0} Students • {stats?.totalEmployees || 0} Employees
+            Enrolled Student Accounts
           </p>
         </div>
 
         <div className="bg-slate-900 border border-emerald-500/10 rounded-3xl p-6">
-          <p className="text-gray-400 mb-2 text-sm font-semibold">Face Enrolled Users</p>
+          <p className="text-gray-400 mb-2 text-sm font-semibold">Face Enrolled Students</p>
           <h2 className="text-4xl font-black text-emerald-400">
-            {stats?.totalFaceRegistered || 0}
+            {stats?.faceRegisteredStudents || stats?.totalFaceRegistered || 0}
           </h2>
           <p className="text-xs text-gray-400 mt-2">
-            {stats?.faceRegisteredStudents || 0} Students • {stats?.faceRegisteredEmployees || 0} Employees
+            Biometric Enrolled Students
           </p>
         </div>
 
@@ -160,19 +160,18 @@ export default function AttendanceReports() {
             </select>
           </div>
 
-          {/* Role Filter */}
+          {/* Status Filter */}
           <div>
             <label className="block text-xs uppercase tracking-wider text-gray-400 font-bold mb-1.5">
-              User Role
+              Status
             </label>
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
               className="w-full bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white outline-none focus:border-cyan-400 text-sm"
             >
-              <option value="">All Roles</option>
+              <option value="">All Records</option>
               <option value="Student">Students Only</option>
-              <option value="Employee">Employees Only</option>
             </select>
           </div>
 

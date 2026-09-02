@@ -6,22 +6,22 @@ import { getApiUrl } from "../config/api";
 export default function HomePage() {
   const [role, setRole] = useState("");
   const [showFaceScanModal, setShowFaceScanModal] = useState(false);
-  const [activeSlotInfo, setActiveSlotInfo] = useState(null);
+  const [activeLectureInfo, setActiveLectureInfo] = useState(null);
 
-  // Fetch current active slot to show on the hero badge
+  // Fetch current active timetable lecture to show on the hero badge
   useEffect(() => {
-    const fetchActiveSlot = async () => {
+    const fetchActiveLecture = async () => {
       try {
-        const res = await fetch(getApiUrl("/api/slots/active"));
+        const res = await fetch(getApiUrl("/api/timetable/current-lecture"));
         const data = await res.json();
-        if (data.success && data.currentSlot) {
-          setActiveSlotInfo(data.currentSlot);
+        if (data.success && data.currentLecture) {
+          setActiveLectureInfo(data.currentLecture);
         }
       } catch (err) {
         // quiet fallback
       }
     };
-    fetchActiveSlot();
+    fetchActiveLecture();
   }, []);
 
   // Student Login
@@ -37,13 +37,13 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="text-center max-w-5xl relative z-10 py-12">
-        {/* Active Slot Live Badge */}
+        {/* Active Lecture Live Badge */}
         <div className="inline-flex items-center gap-3 bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 px-6 py-3 rounded-full text-sm mb-8 shadow-lg">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span>
-            {activeSlotInfo
-              ? `Current Active Slot: ${activeSlotInfo.slotName} (${activeSlotInfo.startTime} - ${activeSlotInfo.endTime})`
-              : "Face Recognition Slot-Wise Attendance System"}
+            {activeLectureInfo
+              ? `Current Active Lecture: ${activeLectureInfo.subjectName} (${activeLectureInfo.startTime} - ${activeLectureInfo.endTime})`
+              : "Face Recognition Timetable Attendance System"}
           </span>
         </div>
 
@@ -60,7 +60,7 @@ export default function HomePage() {
 
         {/* Tagline */}
         <p className="text-base sm:text-lg text-cyan-300 mb-10 tracking-wide">
-          Slot-Wise Verification • Biometric Accuracy • Zero Duplicate Scans
+          Timetable-Based Verification • Biometric Accuracy • Zero Duplicate Scans
         </p>
 
         {/* Quick Face Scan CTA (Centerpiece) */}
@@ -72,7 +72,7 @@ export default function HomePage() {
             <span>Scan Face to Mark Attendance</span>
           </button>
           <p className="text-xs text-gray-400 mt-2">
-            No password required • Instant slot verification
+            No password required • Instant timetable verification
           </p>
         </div>
 

@@ -36,7 +36,7 @@ export default function ManageTimetable() {
       setLoading(true);
       const [ttRes, empRes] = await Promise.all([
         fetch(getApiUrl("/api/timetable")),
-        fetch(getApiUrl("/api/admin/employees")),
+        fetch(getApiUrl("/api/employees/all")),
       ]);
 
       const ttData = await ttRes.json();

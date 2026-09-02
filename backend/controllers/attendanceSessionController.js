@@ -33,11 +33,30 @@ const getCurrentTimeFormatted = () => {
     hour12: true,
   });
 };
+// Helper: Auto-close expired sessions where endTime <= currentTime
+const autoCloseExpiredSessions = async () => {
+  try {
+    const currentTime = getCurrentTime24h();
+    const todayDate = getTodayDateStr();
+    await AttendanceSession.updateMany(
+      {
+        date: todayDate,
+        endTime: { $lte: currentTime },
+        status: "ACTIVE",
+      },
+      { status: "CLOSED" }
+    );
+  } catch (err) {
+    console.error("Auto close expired sessions error:", err);
+  }
+};
 
 // POST /api/attendance-sessions/start
 // Faculty/HOD scans face → identify → check authorization → start session
 const startAttendanceSession = async (req, res) => {
   try {
+    await autoCloseExpiredSessions();
+
     const { faceEmbedding } = req.body;
 
     if (!faceEmbedding || !Array.isArray(faceEmbedding) || faceEmbedding.length === 0) {
@@ -89,17 +108,24 @@ const startAttendanceSession = async (req, res) => {
     const similarityScore = Math.max(0, Math.min(100, Math.round((1 - lowestDistance) * 100)));
 
     // 3. Check authorization: HOD is authorized for all lectures.
-    // Faculty is authorized if facultyId matches, or facultyName matches employee name,
-    // or if no faculty was specifically assigned to this timetable entry.
     const isHOD = bestMatch.role === "hod";
-    const employeeNameLower = (bestMatch.name || "").trim().toLowerCase();
-    const assignedFacultyNameLower = (currentLecture.facultyName || "").trim().toLowerCase();
+
+    const cleanName = (str) =>
+      (str || "")
+        .toLowerCase()
+        .replace(/\b(dr|mr|ms|prof|mrs)\.?,?\b/gi, "")
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+
+    const empClean = cleanName(bestMatch.name);
+    const assignedClean = cleanName(currentLecture.facultyName);
 
     const nameMatches =
-      assignedFacultyNameLower &&
-      (assignedFacultyNameLower === employeeNameLower ||
-        assignedFacultyNameLower.includes(employeeNameLower) ||
-        employeeNameLower.includes(assignedFacultyNameLower));
+      assignedClean &&
+      empClean &&
+      (assignedClean === empClean ||
+        assignedClean.includes(empClean) ||
+        empClean.includes(assignedClean));
 
     const idMatches =
       currentLecture.facultyId &&
@@ -236,6 +262,7 @@ const startAttendanceSession = async (req, res) => {
 // Get the currently active session for the ongoing lecture
 const getCurrentSession = async (req, res) => {
   try {
+    await autoCloseExpiredSessions();
     const { currentLecture, day, currentTime } = await getCurrentLecture();
 
     if (!currentLecture) {
@@ -329,6 +356,8 @@ const getAllSessions = async (req, res) => {
 // Student scans face → identify → check session → check eligibility → mark attendance
 const markStudentAttendanceByFace = async (req, res) => {
   try {
+    await autoCloseExpiredSessions();
+
     const { faceEmbedding } = req.body;
 
     if (!faceEmbedding || !Array.isArray(faceEmbedding) || faceEmbedding.length === 0) {
@@ -338,40 +367,7 @@ const markStudentAttendanceByFace = async (req, res) => {
       });
     }
 
-    // 1. Find current active session
-    const { currentLecture, day, currentTime } = await getCurrentLecture();
-
-    if (!currentLecture) {
-      return res.status(400).json({
-        success: false,
-        faceMatched: false,
-        message: "No lecture is currently scheduled.",
-        currentTime,
-        day,
-      });
-    }
-
-    const todayDate = getTodayDateStr();
-    const activeSession = await AttendanceSession.findOne({
-      timetableEntryId: currentLecture._id,
-      date: todayDate,
-      status: "ACTIVE",
-    });
-
-    if (!activeSession) {
-      return res.status(400).json({
-        success: false,
-        faceMatched: false,
-        message: "No active attendance session for the current lecture. Please wait for faculty to start the session.",
-        currentLecture: {
-          subjectName: currentLecture.subjectName,
-          startTime: currentLecture.startTime,
-          endTime: currentLecture.endTime,
-        },
-      });
-    }
-
-    // 2. Identify student from registered faces
+    // 1. Identify student from registered faces
     const registeredStudents = await Student.find({ faceRegistered: true }).select("+faceEmbedding");
 
     let bestMatch = null;
@@ -398,6 +394,41 @@ const markStudentAttendanceByFace = async (req, res) => {
     }
 
     const similarityScore = Math.max(0, Math.min(100, Math.round((1 - lowestDistance) * 100)));
+
+    // 2. Find current active session matching student's lecture
+    const { currentLecture, day, currentTime } = await getCurrentLecture(bestMatch);
+
+    if (!currentLecture) {
+      return res.status(400).json({
+        success: false,
+        faceMatched: true,
+        user: { id: bestMatch._id, name: bestMatch.name },
+        message: "No lecture is currently scheduled for your division/batch at this time.",
+        currentTime,
+        day,
+      });
+    }
+
+    const todayDate = getTodayDateStr();
+    const activeSession = await AttendanceSession.findOne({
+      timetableEntryId: currentLecture._id,
+      date: todayDate,
+      status: "ACTIVE",
+    });
+
+    if (!activeSession) {
+      return res.status(400).json({
+        success: false,
+        faceMatched: true,
+        user: { id: bestMatch._id, name: bestMatch.name },
+        message: `No active attendance session for ${currentLecture.subjectName}. Please wait for faculty to start the session.`,
+        currentLecture: {
+          subjectName: currentLecture.subjectName,
+          startTime: currentLecture.startTime,
+          endTime: currentLecture.endTime,
+        },
+      });
+    }
 
     // 3. Check eligibility (semester match; division/batch match if set in timetable)
     const sessionSemester = activeSession.semester;
@@ -549,9 +580,14 @@ const markStudentAttendanceByFace = async (req, res) => {
 // Get today's timetable-based attendance status for a student
 const getStudentTodayTimetableAttendance = async (req, res) => {
   try {
+    await autoCloseExpiredSessions();
+
     const { studentId } = req.params;
     const todayDate = getTodayDateStr();
-    const { currentLecture, day, currentTime, dayLectures } = await getCurrentLecture();
+
+    const student = await Student.findById(studentId).select("semester division batch");
+
+    const { currentLecture, day, currentTime, dayLectures } = await getCurrentLecture(student);
 
     // Get active session for current lecture
     let activeSession = null;

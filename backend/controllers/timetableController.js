@@ -15,25 +15,47 @@ const getCurrentTime24h = () => {
 };
 
 // Find the currently active timetable entry based on current day + time
-const getCurrentLecture = async () => {
+const getCurrentLecture = async (user = null) => {
   const day = getCurrentDayName();
   const currentTime = getCurrentTime24h();
 
   if (day === "Sunday") {
-    return { currentLecture: null, day, currentTime };
+    return { currentLecture: null, day, currentTime, dayLectures: [] };
   }
 
   const lectures = await Timetable.find({ day, isActive: true }).sort({ startTime: 1 });
 
+  let filteredLectures = lectures;
+  if (user && (user.batch || user.division)) {
+    // If student has batch or division, filter relevant lectures for the day
+    filteredLectures = lectures.filter((lec) => {
+      const divMatch = !lec.division || !user.division || lec.division === user.division;
+      const batchMatch = !lec.batch || !user.batch || lec.batch === user.batch;
+      return divMatch && batchMatch;
+    });
+  }
+
   let currentLecture = null;
-  for (const lecture of lectures) {
+  for (const lecture of filteredLectures) {
     if (currentTime >= lecture.startTime && currentTime < lecture.endTime) {
       currentLecture = lecture;
       break;
     }
   }
 
-  return { currentLecture, day, currentTime, dayLectures: lectures };
+  // Fallback: If no batch-specific current lecture matched, check general lectures
+  if (!currentLecture) {
+    for (const lecture of lectures) {
+      if (currentTime >= lecture.startTime && currentTime < lecture.endTime) {
+        if (!user || !user.batch || !lecture.batch || lecture.batch === user.batch) {
+          currentLecture = lecture;
+          break;
+        }
+      }
+    }
+  }
+
+  return { currentLecture, day, currentTime, dayLectures: filteredLectures.length > 0 ? filteredLectures : lectures };
 };
 
 // GET /api/timetable/current-lecture

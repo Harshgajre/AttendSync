@@ -6,7 +6,10 @@ const seedAdmin = require("./utils/seedAdmin");
 const seedSlots = require("./utils/seedSlots");
 const seedTimetable = require("./utils/seedTimetable");
 
-// Config
+const path = require("path");
+
+// Config - load .env from backend directory or CWD
+dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config();
 
 // App

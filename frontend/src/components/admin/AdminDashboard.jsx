@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import AttendanceReports from "./AttendanceReports";
-import HolidayControl from "./HolidayControl";
 import SemesterControl from "./SemesterControl";
 import SystemSettings from "./SystemSettings";
-import LeaveApprovalControl from "./LeaveApprovalControl";
 import ManageStudents from "./ManageStudents";
-import ManageEmployees from "./ManageEmployees";
 import ManageSlots from "./ManageSlots";
 import ManageTimetable from "./ManageTimetable";
 import { getApiUrl } from "../../config/api";
@@ -15,7 +12,6 @@ export default function AdminDashboard({ onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [totalStudents, setTotalStudents] = useState(0);
-  const [totalEmployees, setTotalEmployees] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalFaceRegistered, setTotalFaceRegistered] = useState(0);
   const [todayAttendanceCount, setTodayAttendanceCount] = useState(0);
@@ -40,14 +36,13 @@ export default function AdminDashboard({ onLogout }) {
         const data = await response.json();
         if (data.success) {
           setTotalStudents(data.totalStudents || 0);
-          setTotalEmployees(data.totalEmployees || 0);
-          setTotalUsers(data.totalUsers || 0);
         }
 
         // Attendance stats
         const statsRes = await fetch(getApiUrl("/api/attendance/stats"));
         const statsData = await statsRes.json();
         if (statsData.success) {
+          setTotalUsers(statsData.totalStudents || 0);
           setTotalFaceRegistered(statsData.totalFaceRegistered || 0);
           setTodayAttendanceCount(statsData.todayAttendanceCount || 0);
           setCurrentSlotInfo(statsData.currentSlot);
@@ -96,11 +91,8 @@ export default function AdminDashboard({ onLogout }) {
               { id: "timetable", label: "Timetable / Lectures 📅" },
               { id: "slots", label: "Attendance Slots 🕒" },
               { id: "students", label: "Manage Students" },
-              { id: "employees", label: "Manage Employees" },
               { id: "reports", label: "Attendance Reports" },
-              { id: "holiday", label: "Holiday Control" },
               { id: "semester", label: "Semester Control" },
-              { id: "leave-approval", label: "Leave Approval" },
               { id: "settings", label: "System Settings" },
             ].map((section) => (
               <button
@@ -148,11 +140,8 @@ export default function AdminDashboard({ onLogout }) {
           {activeSection === "timetable" && <ManageTimetable />}
           {activeSection === "slots" && <ManageSlots />}
           {activeSection === "students" && <ManageStudents />}
-          {activeSection === "employees" && <ManageEmployees />}
           {activeSection === "reports" && <AttendanceReports />}
-          {activeSection === "holiday" && <HolidayControl />}
           {activeSection === "semester" && <SemesterControl />}
-          {activeSection === "leave-approval" && <LeaveApprovalControl />}
           {activeSection === "settings" && <SystemSettings />}
         </div>
 
@@ -166,11 +155,6 @@ export default function AdminDashboard({ onLogout }) {
               <div className="bg-slate-900/80 border border-cyan-500/10 rounded-3xl p-6">
                 <p className="text-gray-400 mb-2 text-sm font-semibold">Total Students</p>
                 <h2 className="text-5xl font-black text-cyan-400">{totalStudents}</h2>
-              </div>
-
-              <div className="bg-slate-900/80 border border-green-500/10 rounded-3xl p-6">
-                <p className="text-gray-400 mb-2 text-sm font-semibold">Total Employees</p>
-                <h2 className="text-5xl font-black text-green-400">{totalEmployees}</h2>
               </div>
 
               <div className="bg-slate-900/80 border border-emerald-500/10 rounded-3xl p-6">

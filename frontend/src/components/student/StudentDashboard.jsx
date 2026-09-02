@@ -86,10 +86,6 @@ export default function StudentDashboard({
     return () => clearInterval(interval);
   }, [currentUser._id]);
 
-  // Manual Subject Attendance State
-  const [subjectName, setSubjectName] = useState("");
-  const [subjects, setSubjects] = useState([]);
-
   // Semester Dates
   const [semesterData, setSemesterData] = useState({
     start: "",
@@ -102,23 +98,6 @@ export default function StudentDashboard({
       setSemesterData(JSON.parse(savedSemester));
     }
   }, [userName]);
-
-  const handleAddSubject = () => {
-    if (!subjectName.trim()) return;
-    const alreadyExists = subjects.find(
-      (sub) => sub.toLowerCase() === subjectName.toLowerCase()
-    );
-    if (alreadyExists) {
-      alert("Subject already exists");
-      return;
-    }
-    setSubjects([...subjects, subjectName]);
-    setSubjectName("");
-  };
-
-  const handleRemoveSubject = (subject) => {
-    setSubjects(subjects.filter((sub) => sub !== subject));
-  };
 
   const overviewAttendanceRecords = attendanceHistory.map((rec) => ({
     subject: rec.subjectName || rec.slotName || "General",
@@ -160,7 +139,6 @@ export default function StudentDashboard({
             {[
               { id: "home", label: "Dashboard & Live Lecture" },
               { id: "timetable", label: "Lecture-Wise Attendance" },
-              { id: "subjects", label: "Add / Remove Subject" },
               { id: "overview", label: "Overview of Attendance" },
               { id: "semester", label: "Semester Dates" },
             ].map((section) => (
@@ -514,45 +492,6 @@ export default function StudentDashboard({
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* SUBJECTS SECTION */}
-        {activeSection === "subjects" && (
-          <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black mb-10">Subject Manager</h1>
-            <div className="flex flex-col sm:flex-row gap-5 mb-10">
-              <input
-                type="text"
-                placeholder="Enter Subject"
-                value={subjectName}
-                onChange={(e) => setSubjectName(e.target.value)}
-                className="flex-1 bg-slate-900 border border-white/10 p-5 rounded-2xl outline-none"
-              />
-              <button
-                onClick={handleAddSubject}
-                className="bg-cyan-500 hover:bg-cyan-600 px-10 py-5 rounded-2xl font-bold transition-all duration-300"
-              >
-                Save
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {subjects.map((subject, index) => (
-                <div
-                  key={index}
-                  className="bg-slate-900 p-6 rounded-3xl flex flex-col sm:flex-row gap-5 sm:gap-0 items-start sm:items-center justify-between"
-                >
-                  <h2 className="text-xl sm:text-2xl font-bold">{subject}</h2>
-                  <button
-                    onClick={() => handleRemoveSubject(subject)}
-                    className="bg-red-500 hover:bg-red-600 px-5 py-2 rounded-xl transition-all duration-300"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
             </div>
           </div>
         )}
