@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import StudentLogin from "./student/StudentLogin";
-import EmployeeLogin from "./employee/EmployeeLogin";
 import FaceAttendanceModal from "./common/FaceAttendanceModal";
 import { getApiUrl } from "../config/api";
 
@@ -28,11 +27,6 @@ export default function HomePage() {
   // Student Login
   if (role === "student") {
     return <StudentLogin />;
-  }
-
-  // Employee Login
-  if (role === "employee") {
-    return <EmployeeLogin />;
   }
 
   return (
@@ -83,21 +77,13 @@ export default function HomePage() {
         </div>
 
         {/* Portal Buttons */}
-        <div className="flex flex-col sm:flex-row gap-5 justify-center items-center max-w-lg mx-auto">
+        <div className="flex justify-center items-center max-w-xs mx-auto">
           {/* Student */}
           <button
             onClick={() => setRole("student")}
-            className="w-full sm:w-1/2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 px-8 py-4 rounded-2xl text-base sm:text-lg font-bold shadow-xl shadow-cyan-500/20 hover:scale-105 transition-all duration-300"
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 px-8 py-4 rounded-2xl text-base sm:text-lg font-bold shadow-xl shadow-cyan-500/20 hover:scale-105 transition-all duration-300"
           >
             Student Portal
-          </button>
-
-          {/* Employee */}
-          <button
-            onClick={() => setRole("employee")}
-            className="w-full sm:w-1/2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 px-8 py-4 rounded-2xl text-base sm:text-lg font-bold shadow-xl shadow-green-500/20 hover:scale-105 transition-all duration-300"
-          >
-            Employee Portal
           </button>
         </div>
 

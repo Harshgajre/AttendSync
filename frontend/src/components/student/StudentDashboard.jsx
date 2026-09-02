@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import AttendanceOverview from "./AttendanceOverview";
-import HolidayList from "./HolidayList";
 import SemesterDates from "./SemesterDates";
 import FaceAttendanceModal from "../common/FaceAttendanceModal";
 import { getApiUrl } from "../../config/api";
@@ -91,13 +90,6 @@ export default function StudentDashboard({
   const [subjectName, setSubjectName] = useState("");
   const [subjects, setSubjects] = useState([]);
 
-  const currentDate = new Date();
-  const [selectedSubject, setSelectedSubject] = useState("");
-  const [month, setMonth] = useState(currentDate.getMonth());
-  const [year, setYear] = useState(currentDate.getFullYear());
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [attendanceData, setAttendanceData] = useState({});
-
   // Semester Dates
   const [semesterData, setSemesterData] = useState({
     start: "",
@@ -110,15 +102,6 @@ export default function StudentDashboard({
       setSemesterData(JSON.parse(savedSemester));
     }
   }, [userName]);
-
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const totalDays = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay();
-  const blanks = Array(firstDay).fill(null);
 
   const handleAddSubject = () => {
     if (!subjectName.trim()) return;
@@ -137,44 +120,10 @@ export default function StudentDashboard({
     setSubjects(subjects.filter((sub) => sub !== subject));
   };
 
-  const handlePresent = () => {
-    if (!selectedSubject || !selectedDate) {
-      alert("Select Subject & Date");
-      return;
-    }
-    setAttendanceData({
-      ...attendanceData,
-      [`${selectedSubject}-${year}-${month}-${selectedDate}`]: "Present",
-    });
-  };
-
-  const handleAbsent = () => {
-    if (!selectedSubject || !selectedDate) {
-      alert("Select Subject & Date");
-      return;
-    }
-    setAttendanceData({
-      ...attendanceData,
-      [`${selectedSubject}-${year}-${month}-${selectedDate}`]: "Absent",
-    });
-  };
-
-  const handleSaveAttendance = () => {
-    if (!selectedSubject || !selectedDate) {
-      alert("Select Subject & Date");
-      return;
-    }
-    alert("Attendance Saved Successfully");
-  };
-
-  const attendanceRecords = Object.entries(attendanceData).map(([key, value]) => {
-    const parts = key.split("-");
-    return {
-      subject: parts[0],
-      date: `${parts[3]}/${Number(parts[2]) + 1}/${parts[1]}`,
-      status: value,
-    };
-  });
+  const overviewAttendanceRecords = attendanceHistory.map((rec) => ({
+    subject: rec.subjectName || rec.slotName || "General",
+    status: rec.status || "Present",
+  }));
 
   const curLecture = timetableData.currentLecture;
   const isSessionActive = timetableData.sessionStarted;
@@ -212,9 +161,7 @@ export default function StudentDashboard({
               { id: "home", label: "Dashboard & Live Lecture" },
               { id: "timetable", label: "Lecture-Wise Attendance" },
               { id: "subjects", label: "Add / Remove Subject" },
-              { id: "fill", label: "Fill Subject Attendance" },
               { id: "overview", label: "Overview of Attendance" },
-              { id: "holidays", label: "Holiday List" },
               { id: "semester", label: "Semester Dates" },
             ].map((section) => (
               <button
@@ -610,130 +557,10 @@ export default function StudentDashboard({
           </div>
         )}
 
-        {/* FILL ATTENDANCE SECTION */}
-        {activeSection === "fill" && (
-          <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black mb-10">
-              Fill <span className="text-cyan-400">Attendance</span>
-            </h1>
-
-            <div className="bg-slate-900 p-6 sm:p-8 rounded-3xl border border-cyan-500/10">
-              <div className="mb-8">
-                <label className="block text-lg font-bold mb-3">Choose Subject</label>
-                <select
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="w-full bg-slate-800 px-5 py-4 rounded-2xl outline-none"
-                >
-                  <option value="">Select Subject</option>
-                  {subjects.map((subject, index) => (
-                    <option key={index} value={subject}>
-                      {subject}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-wrap gap-4 mb-8">
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                  className="bg-slate-800 px-5 py-3 rounded-2xl outline-none"
-                >
-                  {months.map((m, index) => (
-                    <option key={index} value={index}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={year}
-                  onChange={(e) => setYear(Number(e.target.value))}
-                  className="bg-slate-800 px-5 py-3 rounded-2xl outline-none"
-                >
-                  {[2024, 2025, 2026, 2027, 2028].map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <h2 className="text-3xl font-black text-cyan-400 mb-6">
-                {months[month]} {year}
-              </h2>
-
-              <div className="grid grid-cols-7 gap-2 mb-3">
-                {days.map((day) => (
-                  <div key={day} className="text-center text-sm font-bold text-gray-400">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-7 gap-2">
-                {blanks.map((_, index) => (
-                  <div key={index} className="h-10 sm:h-12"></div>
-                ))}
-
-                {[...Array(totalDays)].map((_, index) => {
-                  const day = index + 1;
-                  const key = `${selectedSubject}-${year}-${month}-${day}`;
-                  const status = attendanceData[key];
-
-                  return (
-                    <div
-                      key={day}
-                      onClick={() => setSelectedDate(day)}
-                      className={`h-10 sm:h-12 rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold cursor-pointer transition-all duration-300 border ${
-                        selectedDate === day ? "border-white scale-105" : "border-white/10"
-                      } ${
-                        status === "Present"
-                          ? "bg-green-500 text-white"
-                          : status === "Absent"
-                          ? "bg-red-500 text-white"
-                          : "bg-slate-800 hover:bg-slate-700"
-                      }`}
-                    >
-                      {day}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-5 mt-10">
-                <button
-                  onClick={handlePresent}
-                  className="flex-1 bg-green-500 hover:bg-green-600 py-4 rounded-2xl text-lg font-bold transition-all"
-                >
-                  Present
-                </button>
-                <button
-                  onClick={handleAbsent}
-                  className="flex-1 bg-red-500 hover:bg-red-600 py-4 rounded-2xl text-lg font-bold transition-all"
-                >
-                  Absent
-                </button>
-              </div>
-
-              <button
-                onClick={handleSaveAttendance}
-                className="w-full mt-6 bg-cyan-500 hover:bg-cyan-600 py-5 rounded-2xl text-lg font-bold transition-all duration-300"
-              >
-                Save Attendance
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* OVERVIEW SECTION */}
         {activeSection === "overview" && (
-          <AttendanceOverview attendanceRecords={attendanceRecords} />
+          <AttendanceOverview attendanceRecords={overviewAttendanceRecords} />
         )}
-
-        {/* HOLIDAYS SECTION */}
-        {activeSection === "holidays" && <HolidayList />}
 
         {/* SEMESTER SECTION */}
         {activeSection === "semester" && (
