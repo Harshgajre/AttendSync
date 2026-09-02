@@ -585,7 +585,7 @@ const getStudentTodayTimetableAttendance = async (req, res) => {
     const { studentId } = req.params;
     const todayDate = getTodayDateStr();
 
-    const student = await Student.findById(studentId).select("semester division batch");
+    const student = await Student.findById(studentId).select("semester division batch electiveSubjectCode electiveSubjectName");
 
     const { currentLecture, day, currentTime, dayLectures } = await getCurrentLecture(student);
 

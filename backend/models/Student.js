@@ -35,6 +35,16 @@ const studentSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    electiveSubjectCode: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    electiveSubjectName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     // Face Recognition Biometric Data
     faceEmbedding: {
       type: [Number], // 128-dimensional float array

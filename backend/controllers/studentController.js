@@ -23,6 +23,10 @@ const sanitizeStudent = (student) => {
     name: student.name,
     college: student.college,
     semester: student.semester,
+    division: student.division || "7IT-1",
+    batch: student.batch || "",
+    electiveSubjectCode: student.electiveSubjectCode || "",
+    electiveSubjectName: student.electiveSubjectName || "",
     attendance: student.attendance,
     faceRegistered: student.faceRegistered || false,
     faceImage: student.faceImage || "",
@@ -37,7 +41,18 @@ const sanitizeStudent = (student) => {
 // Register Student
 const registerStudent = async (req, res) => {
   try {
-    const { name, college, password, semester, faceEmbedding, faceImage } = req.body;
+    const {
+      name,
+      college,
+      password,
+      semester,
+      division,
+      batch,
+      electiveSubjectCode,
+      electiveSubjectName,
+      faceEmbedding,
+      faceImage,
+    } = req.body;
 
     if (!name || !college || !password) {
       return res.status(400).json({
@@ -72,7 +87,11 @@ const registerStudent = async (req, res) => {
       name: trimmedName,
       college: trimmedCollege,
       password: hashedPassword,
-      semester: semester || "1",
+      semester: semester || "7",
+      division: division || "7IT-1",
+      batch: batch || "",
+      electiveSubjectCode: electiveSubjectCode || "",
+      electiveSubjectName: electiveSubjectName || "",
       faceEmbedding: isFaceProvided ? faceEmbedding : [],
       faceRegistered: isFaceProvided,
       faceImage: faceImage || "",

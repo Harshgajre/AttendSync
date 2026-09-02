@@ -26,12 +26,29 @@ const getCurrentLecture = async (user = null) => {
   const lectures = await Timetable.find({ day, isActive: true }).sort({ startTime: 1 });
 
   let filteredLectures = lectures;
-  if (user && (user.batch || user.division)) {
-    // If student has batch or division, filter relevant lectures for the day
+  if (user) {
+    const ELECTIVE_CODES = ["202047801", "202047803", "202047808", "202046715"];
+
     filteredLectures = lectures.filter((lec) => {
-      const divMatch = !lec.division || !user.division || lec.division === user.division;
-      const batchMatch = !lec.batch || !user.batch || lec.batch === user.batch;
-      return divMatch && batchMatch;
+      // 1. Division filter
+      if (user.division && lec.division && lec.division !== user.division) {
+        return false;
+      }
+      // 2. Batch filter (If lecture specifies a batch, it MUST match the student's batch)
+      if (user.batch && lec.batch && lec.batch !== user.batch) {
+        return false;
+      }
+      // 3. Elective subject filter
+      const isElectiveLec = ELECTIVE_CODES.includes(lec.subjectCode);
+      if (isElectiveLec && user.electiveSubjectCode) {
+        const isMatch =
+          lec.subjectCode === user.electiveSubjectCode ||
+          (user.electiveSubjectName &&
+            lec.subjectName &&
+            lec.subjectName.toLowerCase().includes(user.electiveSubjectName.toLowerCase()));
+        if (!isMatch) return false;
+      }
+      return true;
     });
   }
 
@@ -43,11 +60,12 @@ const getCurrentLecture = async (user = null) => {
     }
   }
 
-  // Fallback: If no batch-specific current lecture matched, check general lectures
-  if (!currentLecture) {
+  // Fallback if no specific entry found
+  if (!currentLecture && user) {
     for (const lecture of lectures) {
       if (currentTime >= lecture.startTime && currentTime < lecture.endTime) {
-        if (!user || !user.batch || !lecture.batch || lecture.batch === user.batch) {
+        const batchOk = !lecture.batch || !user.batch || lecture.batch === user.batch;
+        if (batchOk) {
           currentLecture = lecture;
           break;
         }
@@ -55,7 +73,12 @@ const getCurrentLecture = async (user = null) => {
     }
   }
 
-  return { currentLecture, day, currentTime, dayLectures: filteredLectures.length > 0 ? filteredLectures : lectures };
+  return {
+    currentLecture,
+    day,
+    currentTime,
+    dayLectures: filteredLectures.length > 0 ? filteredLectures : lectures,
+  };
 };
 
 // GET /api/timetable/current-lecture

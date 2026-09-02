@@ -8,13 +8,29 @@ export default function StudentLogin() {
   const [isRegister, setIsRegister] = useState(false);
   const [studentName, setStudentName] = useState("");
   const [collegeName, setCollegeName] = useState("");
-  const [semester, setSemester] = useState("1");
+  const [semester, setSemester] = useState("7");
+  const [selectedSubjectCode, setSelectedSubjectCode] = useState("202047801");
+  const [selectedBatch, setSelectedBatch] = useState("1A8");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  const ELECTIVE_SUBJECT_OPTIONS = [
+    { code: "202047801", name: "Advanced Software Engineering", label: "ASE — 202047801" },
+    { code: "202047803", name: "Big Data Analytics", label: "BDA — 202047803" },
+    { code: "202047808", name: "Management of IT Infrastructure", label: "UIUX — 202047808" },
+    { code: "202046715", name: "UI/UX Design", label: "UIUX — 202046715" },
+  ];
+
+  const BATCH_OPTIONS = [
+    "1A8", "1B8", "1C8", "1D8",
+    "1A18", "1B18", "1C18", "1D18", "1U18",
+    "1A28", "1B28", "1D28", "1U28",
+    "A1", "A2", "B1", "B2",
+  ];
 
   // Face Recognition Biometric States
   const [faceData, setFaceData] = useState(null); // { faceEmbedding: Array, faceImage: String }
@@ -111,6 +127,8 @@ export default function StudentLogin() {
       return;
     }
 
+    const chosenSubObj = ELECTIVE_SUBJECT_OPTIONS.find((s) => s.code === selectedSubjectCode) || ELECTIVE_SUBJECT_OPTIONS[0];
+
     setLoading(true);
     try {
       const response = await fetch(getApiUrl(`/api/students/register`), {
@@ -121,7 +139,11 @@ export default function StudentLogin() {
         body: JSON.stringify({
           name: studentName.trim(),
           college: collegeName.trim(),
-          semester: semester || "1",
+          semester: semester || "7",
+          division: "7IT-1",
+          batch: selectedBatch,
+          electiveSubjectCode: chosenSubObj.code,
+          electiveSubjectName: chosenSubObj.name,
           password,
           faceEmbedding: faceData.faceEmbedding,
           faceImage: faceData.faceImage,
@@ -287,24 +309,73 @@ export default function StudentLogin() {
             />
           </div>
 
-          {/* Semester (in register mode) */}
+          {/* Semester, Elective Subject, and Batch (in register mode) */}
           {isRegister && (
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1.5 ml-1">
-                Semester
-              </label>
-              <select
-                value={semester}
-                onChange={(e) => setSemester(e.target.value)}
-                className="w-full bg-slate-800/80 border border-white/10 focus:border-cyan-400 p-4 rounded-2xl outline-none text-white transition-all"
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                  <option key={s} value={String(s)} className="bg-slate-900 text-white">
-                    Semester {s}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1.5 ml-1">
+                  Semester
+                </label>
+                <select
+                  value={semester}
+                  onChange={(e) => setSemester(e.target.value)}
+                  className="w-full bg-slate-800/80 border border-white/10 focus:border-cyan-400 p-4 rounded-2xl outline-none text-white transition-all"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                    <option key={s} value={String(s)} className="bg-slate-900 text-white">
+                      Semester {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 1. Select Subject */}
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-cyan-400 font-bold mb-1.5 ml-1">
+                  Select Elective Subject *
+                </label>
+                <select
+                  value={selectedSubjectCode}
+                  onChange={(e) => setSelectedSubjectCode(e.target.value)}
+                  className="w-full bg-slate-800/80 border border-cyan-500/30 focus:border-cyan-400 p-4 rounded-2xl outline-none text-white transition-all font-medium"
+                >
+                  {ELECTIVE_SUBJECT_OPTIONS.map((sub) => (
+                    <option key={sub.code} value={sub.code} className="bg-slate-900 text-white">
+                      {sub.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. Select Batch */}
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-cyan-400 font-bold mb-1.5 ml-1">
+                  Select Lab Batch *
+                </label>
+                <select
+                  value={selectedBatch}
+                  onChange={(e) => setSelectedBatch(e.target.value)}
+                  className="w-full bg-slate-800/80 border border-cyan-500/30 focus:border-cyan-400 p-4 rounded-2xl outline-none text-white transition-all font-medium"
+                >
+                  {BATCH_OPTIONS.map((b) => (
+                    <option key={b} value={b} className="bg-slate-900 text-white">
+                      Batch {b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Warning Banner */}
+              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 p-4 rounded-2xl text-xs flex items-start gap-2.5">
+                <span className="text-base">⚠️</span>
+                <div>
+                  <p className="font-bold text-amber-200">Registration Notice</p>
+                  <p className="mt-0.5 text-amber-300/90">
+                    Subject and batch cannot be changed after registration.
+                  </p>
+                </div>
+              </div>
+            </>
           )}
 
           {/* Face Biometric Enrollment Section (in register mode) */}

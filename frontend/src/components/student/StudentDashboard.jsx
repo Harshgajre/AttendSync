@@ -208,9 +208,17 @@ export default function StudentDashboard({
               </div>
 
               {currentUser.semester && (
-                <span className="px-4 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black uppercase tracking-wider">
-                  Semester {currentUser.semester} • Div {currentUser.division || "A"}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-4 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black uppercase tracking-wider">
+                    Sem {currentUser.semester} • Div {currentUser.division || "7IT-1"}
+                    {currentUser.batch ? ` • Batch ${currentUser.batch}` : ""}
+                  </span>
+                  {currentUser.electiveSubjectCode && (
+                    <span className="px-3.5 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-bold uppercase tracking-wider">
+                      Elective: {currentUser.electiveSubjectCode}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
 
