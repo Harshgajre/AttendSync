@@ -731,6 +731,188 @@ const getFacultyCurrentLectureInfo = async (req, res) => {
   }
 };
 
+// POST /api/attendance-sessions/start-by-login
+// Faculty/HOD logged in via admin dashboard starts the current lecture's session
+// Does NOT require face scan — uses JWT identity (req.user)
+const startSessionByLogin = async (req, res) => {
+  try {
+    await autoCloseExpiredSessions();
+
+    // req.user is set by authMiddleware (faculty_admin or admin token)
+    const { id: startedById, name: startedByName, employeeRole } = req.user;
+
+    if (!startedById) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required. Please log in.",
+      });
+    }
+
+    // Find current lecture from timetable
+    const { currentLecture, day, currentTime } = await getCurrentLecture();
+
+    if (!currentLecture) {
+      return res.status(400).json({
+        success: false,
+        message: "No lecture is currently scheduled. Please check the timetable.",
+        currentTime,
+        day,
+      });
+    }
+
+    const todayDate = getTodayDateStr();
+    const existingSession = await AttendanceSession.findOne({
+      timetableEntryId: currentLecture._id,
+      date: todayDate,
+    });
+
+    if (existingSession) {
+      if (existingSession.status === "ACTIVE") {
+        const presentCount = await Attendance.countDocuments({
+          attendanceSessionId: existingSession._id,
+        });
+        return res.status(200).json({
+          success: true,
+          alreadyStarted: true,
+          message: "Attendance session is already active for this lecture.",
+          session: { ...existingSession.toObject(), presentCount },
+          currentLecture,
+        });
+      }
+      // Session exists but is CLOSED/COMPLETED — reactivate it
+      existingSession.status = "ACTIVE";
+      existingSession.startedById = startedById;
+      existingSession.startedByModel = "Employee";
+      existingSession.startedByName = startedByName || "Faculty";
+      existingSession.startedByRole = employeeRole || "faculty";
+      existingSession.actualSessionStartTime = getCurrentTimeFormatted();
+      await existingSession.save();
+
+      return res.status(200).json({
+        success: true,
+        alreadyStarted: false,
+        message: `Attendance session restarted for ${currentLecture.subjectName}.`,
+        session: existingSession,
+        currentLecture,
+      });
+    }
+
+    // Create new attendance session
+    const now = getCurrentTimeFormatted();
+    const newSession = new AttendanceSession({
+      timetableEntryId: currentLecture._id,
+      date: todayDate,
+      day: getCurrentDayName(),
+      subjectCode: currentLecture.subjectCode,
+      subjectName: currentLecture.subjectName,
+      facultyId: currentLecture.facultyId || null,
+      facultyName: currentLecture.facultyName || "",
+      startTime: currentLecture.startTime,
+      endTime: currentLecture.endTime,
+      room: currentLecture.room || "",
+      semester: currentLecture.semester || "",
+      division: currentLecture.division || "",
+      batch: currentLecture.batch || "",
+      startedById: startedById,
+      startedByModel: "Employee",
+      startedByName: startedByName || "Faculty",
+      startedByRole: employeeRole || "faculty",
+      actualSessionStartTime: now,
+      status: "ACTIVE",
+      presentCount: 0,
+    });
+
+    await newSession.save();
+
+    res.status(201).json({
+      success: true,
+      alreadyStarted: false,
+      message: `Attendance session started for ${currentLecture.subjectName}.`,
+      session: newSession,
+      currentLecture,
+    });
+  } catch (error) {
+    console.error("startSessionByLogin error:", error);
+    if (error.code === 11000) {
+      const todayDate = getTodayDateStr();
+      const { currentLecture } = await getCurrentLecture();
+      if (currentLecture) {
+        const session = await AttendanceSession.findOne({
+          timetableEntryId: currentLecture._id,
+          date: todayDate,
+        });
+        if (session) {
+          return res.status(200).json({
+            success: true,
+            alreadyStarted: true,
+            message: "Attendance session is already active.",
+            session,
+          });
+        }
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to start attendance session",
+    });
+  }
+};
+
+// PUT /api/attendance-sessions/stop-current
+// Faculty/HOD logged in via admin dashboard stops the current active session immediately
+const stopCurrentSession = async (req, res) => {
+  try {
+    await autoCloseExpiredSessions();
+
+    const { currentLecture } = await getCurrentLecture();
+    const todayDate = getTodayDateStr();
+
+    let activeSession = null;
+
+    if (currentLecture) {
+      activeSession = await AttendanceSession.findOne({
+        timetableEntryId: currentLecture._id,
+        date: todayDate,
+        status: "ACTIVE",
+      });
+    }
+
+    // Fallback: find any active session for today
+    if (!activeSession) {
+      activeSession = await AttendanceSession.findOne({
+        date: todayDate,
+        status: "ACTIVE",
+      });
+    }
+
+    if (!activeSession) {
+      return res.status(404).json({
+        success: false,
+        message: "No active attendance session found to stop.",
+      });
+    }
+
+    activeSession.status = "CLOSED";
+    await activeSession.save();
+
+    const presentCount = await Attendance.countDocuments({
+      attendanceSessionId: activeSession._id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Attendance session stopped. ${presentCount} student(s) marked present.`,
+      session: { ...activeSession.toObject(), presentCount },
+    });
+  } catch (error) {
+    console.error("stopCurrentSession error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to stop attendance session",
+    });
+  }
+};
+
 module.exports = {
   startAttendanceSession,
   getCurrentSession,
@@ -740,4 +922,6 @@ module.exports = {
   getStudentTodayTimetableAttendance,
   getStudentTimetableHistory,
   getFacultyCurrentLectureInfo,
+  startSessionByLogin,
+  stopCurrentSession,
 };

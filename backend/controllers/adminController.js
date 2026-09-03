@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
+const Employee = require("../models/Employee");
 const Student = require("../models/Student");
 
 const generateAdminToken = (admin) => {
@@ -84,6 +85,89 @@ const loginAdmin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Admin login failed",
+    });
+  }
+};
+
+// Faculty Login as Admin Dashboard User
+// Uses existing Employee (faculty/HOD) credentials: name + company + password
+const loginFacultyAsAdmin = async (req, res) => {
+  try {
+    const { name, company, password } = req.body;
+
+    if (!name || !company || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide faculty name, department/company, and password",
+      });
+    }
+
+    const trimmedName = name.trim();
+    const trimmedCompany = company.trim();
+
+    // Find employee by name + company (same as employee login)
+    const employee = await Employee.findOne({
+      name: new RegExp(`^${trimmedName}$`, "i"),
+      company: new RegExp(`^${trimmedCompany}$`, "i"),
+    });
+
+    if (!employee) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials. Faculty not found.",
+      });
+    }
+
+    // Verify password
+    let isMatch = false;
+    if (employee.password) {
+      isMatch = await bcrypt.compare(password, employee.password);
+      // Fallback for legacy plain text passwords
+      if (!isMatch && employee.password === password) {
+        isMatch = true;
+        const salt = await bcrypt.genSalt(10);
+        employee.password = await bcrypt.hash(password, salt);
+        await employee.save();
+      }
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials. Incorrect password.",
+      });
+    }
+
+    const secret = process.env.JWT_SECRET || "attendsync_super_secret_jwt_key_2026_secure";
+    const token = jwt.sign(
+      {
+        id: employee._id,
+        role: "faculty_admin",
+        name: employee.name,
+        company: employee.company,
+        employeeRole: employee.role, // original faculty/hod role
+      },
+      secret,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Faculty Login Successful",
+      token,
+      admin: {
+        id: employee._id,
+        name: employee.name,
+        company: employee.company,
+        employeeRole: employee.role,
+        role: "faculty_admin",
+      },
+    });
+  } catch (error) {
+    console.error("loginFacultyAsAdmin error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Faculty login failed",
     });
   }
 };
@@ -174,6 +258,7 @@ const deleteStudent = async (req, res) => {
 // Exports
 module.exports = {
   loginAdmin,
+  loginFacultyAsAdmin,
   getAdminProfile,
   getDashboardData,
   getAllStudents,

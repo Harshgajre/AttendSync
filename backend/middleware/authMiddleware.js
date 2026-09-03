@@ -47,7 +47,19 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
+// Faculty Admin or Admin — allows both admin and faculty_admin roles (dashboard access)
+const facultyAdminOrAdmin = (req, res, next) => {
+  if (!req.user || (req.user.role !== "admin" && req.user.role !== "faculty_admin")) {
+    return res.status(403).json({
+      success: false,
+      message: "Access Forbidden. Faculty or Admin privileges required.",
+    });
+  }
+  next();
+};
+
 module.exports = authMiddleware;
 module.exports.authMiddleware = authMiddleware;
 module.exports.adminOnly = adminOnly;
+module.exports.facultyAdminOrAdmin = facultyAdminOrAdmin;
 

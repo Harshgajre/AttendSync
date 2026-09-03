@@ -28,7 +28,9 @@ function App() {
       }
     })();
 
-    const isAdminAuthenticated = Boolean(adminToken && adminUser && adminUser.role === "admin");
+    const isAdminAuthenticated = Boolean(
+      adminToken && adminUser && (adminUser.role === "admin" || adminUser.role === "faculty_admin")
+    );
 
     const handleAdminLogout = () => {
       localStorage.removeItem("adminToken");

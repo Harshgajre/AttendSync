@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { authMiddleware } = require("../middleware/authMiddleware");
 const {
   startAttendanceSession,
   getCurrentSession,
@@ -9,10 +10,18 @@ const {
   getStudentTodayTimetableAttendance,
   getStudentTimetableHistory,
   getFacultyCurrentLectureInfo,
+  startSessionByLogin,
+  stopCurrentSession,
 } = require("../controllers/attendanceSessionController");
 
 // Faculty/HOD face scan to start session
 router.post("/start", startAttendanceSession);
+
+// Faculty/HOD logged-in (admin dashboard) start session — no face scan required
+router.post("/start-by-login", authMiddleware, startSessionByLogin);
+
+// Faculty/HOD logged-in (admin dashboard) stop current active session immediately
+router.put("/stop-current", authMiddleware, stopCurrentSession);
 
 // Student face scan to mark attendance
 router.post("/student-face-scan", markStudentAttendanceByFace);

@@ -1,21 +1,24 @@
 const express = require("express");
 const router = express.Router();
-const { authMiddleware, adminOnly } = require("../middleware/authMiddleware");
+const { authMiddleware, adminOnly, facultyAdminOrAdmin } = require("../middleware/authMiddleware");
 
 const {
   loginAdmin,
+  loginFacultyAsAdmin,
   getAdminProfile,
   getDashboardData,
   getAllStudents,
   deleteStudent,
 } = require("../controllers/adminController");
 
-// Public Admin Route
+// Public Admin Routes
 router.post("/login", loginAdmin);
+router.post("/faculty-login", loginFacultyAsAdmin);
 
 // Protected Admin Routes (JWT required + role === 'admin')
 router.get("/me", authMiddleware, adminOnly, getAdminProfile);
-router.get("/dashboard", authMiddleware, adminOnly, getDashboardData);
+// Dashboard accessible by both admin and faculty_admin
+router.get("/dashboard", authMiddleware, facultyAdminOrAdmin, getDashboardData);
 router.get("/students", authMiddleware, adminOnly, getAllStudents);
 router.delete("/student/:id", authMiddleware, adminOnly, deleteStudent);
 
