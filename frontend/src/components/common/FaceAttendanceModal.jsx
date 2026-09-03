@@ -152,8 +152,8 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
           // Ineligible (e.g. wrong semester/division)
           setScanState("ineligible");
           setStatusMessage(data.message || "You are not eligible for this lecture session.");
-        } else if (response.status === 400 && !data.faceMatched && data.currentLecture) {
-          // Faculty has not started session
+        } else if (response.status === 400 && data.currentLecture) {
+          // Faculty has not started session or session is closed
           setScanState("no_session");
           setStatusMessage(data.message || "Attendance session is not active. Please wait for faculty to start it.");
         } else {

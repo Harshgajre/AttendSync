@@ -90,52 +90,58 @@ const loginAdmin = async (req, res) => {
 };
 
 // Faculty Login as Admin Dashboard User
-// Uses existing Employee (faculty/HOD) credentials: name + company + password
+// Selected Faculty Name = login identity.
+// Password = exactly the same selected faculty name.
+// Does not require a pre-existing employee record (auto-provisions if not found).
 const loginFacultyAsAdmin = async (req, res) => {
   try {
-    const { name, company, password } = req.body;
+    const { name, password } = req.body;
 
-    if (!name || !company || !password) {
+    if (!name || !password) {
       return res.status(400).json({
         success: false,
-        message: "Please provide faculty name, department/company, and password",
+        message: "Please provide faculty name and password",
       });
     }
 
     const trimmedName = name.trim();
-    const trimmedCompany = company.trim();
+    const trimmedPassword = password.trim();
 
-    // Find employee by name + company (same as employee login)
-    const employee = await Employee.findOne({
-      name: new RegExp(`^${trimmedName}$`, "i"),
-      company: new RegExp(`^${trimmedCompany}$`, "i"),
+    // Check if password matches the selected faculty name (case-insensitive or exact)
+    let passwordMatches = trimmedPassword.toLowerCase() === trimmedName.toLowerCase();
+
+    // Find employee by name (case-insensitive)
+    const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let employee = await Employee.findOne({
+      name: new RegExp(`^${escapedName}$`, "i"),
     });
 
-    if (!employee) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials. Faculty not found.",
-      });
-    }
-
-    // Verify password
-    let isMatch = false;
-    if (employee.password) {
-      isMatch = await bcrypt.compare(password, employee.password);
-      // Fallback for legacy plain text passwords
-      if (!isMatch && employee.password === password) {
-        isMatch = true;
-        const salt = await bcrypt.genSalt(10);
-        employee.password = await bcrypt.hash(password, salt);
-        await employee.save();
+    if (employee && !passwordMatches && employee.password) {
+      // Also allow legacy/custom password if previously set
+      const isBcryptMatch = await bcrypt.compare(password, employee.password);
+      if (isBcryptMatch) {
+        passwordMatches = true;
       }
     }
 
-    if (!isMatch) {
+    if (!passwordMatches) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials. Incorrect password.",
+        message: "Incorrect password. Password must match the selected faculty name.",
       });
+    }
+
+    // If employee doesn't exist yet, auto-create one so ObjectIds & references work throughout the system
+    if (!employee) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(trimmedName, salt);
+      employee = new Employee({
+        name: trimmedName,
+        company: "Faculty",
+        role: "faculty",
+        password: hashedPassword,
+      });
+      await employee.save();
     }
 
     const secret = process.env.JWT_SECRET || "attendsync_super_secret_jwt_key_2026_secure";
@@ -144,8 +150,8 @@ const loginFacultyAsAdmin = async (req, res) => {
         id: employee._id,
         role: "faculty_admin",
         name: employee.name,
-        company: employee.company,
-        employeeRole: employee.role, // original faculty/hod role
+        company: employee.company || "Faculty",
+        employeeRole: employee.role || "faculty",
       },
       secret,
       { expiresIn: "7d" }
@@ -158,8 +164,8 @@ const loginFacultyAsAdmin = async (req, res) => {
       admin: {
         id: employee._id,
         name: employee.name,
-        company: employee.company,
-        employeeRole: employee.role,
+        company: employee.company || "Faculty",
+        employeeRole: employee.role || "faculty",
         role: "faculty_admin",
       },
     });

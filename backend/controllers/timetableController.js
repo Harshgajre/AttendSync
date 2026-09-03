@@ -279,6 +279,29 @@ const getLecturesByDay = async (req, res) => {
   }
 };
 
+// GET /api/timetable/faculty-names
+// Returns sorted, deduplicated list of faculty names from all active timetable entries
+const getFacultyNames = async (req, res) => {
+  try {
+    const entries = await Timetable.find(
+      { isActive: true, facultyName: { $nin: ["", null] } },
+      { facultyName: 1, _id: 0 }
+    );
+
+    const namesSet = new Set();
+    for (const e of entries) {
+      if (e.facultyName && e.facultyName.trim()) {
+        namesSet.add(e.facultyName.trim());
+      }
+    }
+
+    const names = Array.from(namesSet).sort((a, b) => a.localeCompare(b));
+    res.status(200).json({ success: true, names });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getCurrentLecture,
   getCurrentLectureHandler,
@@ -288,6 +311,7 @@ module.exports = {
   updateTimetableEntry,
   deleteTimetableEntry,
   getLecturesByDay,
+  getFacultyNames,
   getCurrentDayName,
   getCurrentTime24h,
 };

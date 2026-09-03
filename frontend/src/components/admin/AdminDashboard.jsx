@@ -18,10 +18,11 @@ export default function AdminDashboard({ onLogout }) {
   const [currentSlotInfo, setCurrentSlotInfo] = useState(null);
   const [currentSlotAttendance, setCurrentSlotAttendance] = useState(0);
 
-  // Attendance session state
-  const [activeSession, setActiveSession] = useState(null);
-  const [currentLecture, setCurrentLecture] = useState(null);
-  const [sessionActionLoading, setSessionActionLoading] = useState(false);
+  // Faculty Today's Lectures & Attendance Session State
+  const [todayLectures, setTodayLectures] = useState([]);
+  const [todayInfo, setTodayInfo] = useState({ day: "", currentTime: "", todayDate: "" });
+  const [loadingLectures, setLoadingLectures] = useState(true);
+  const [sessionActionLoadingId, setSessionActionLoadingId] = useState(null);
   const [sessionActionMsg, setSessionActionMsg] = useState("");
 
   // Logged-in user info
@@ -63,15 +64,25 @@ export default function AdminDashboard({ onLogout }) {
         setCurrentSlotAttendance(statsData.currentSlotAttendanceCount || 0);
       }
 
-      // Current session status
-      const sessionRes = await fetch(getApiUrl("/api/attendance-sessions/current"));
-      const sessionData = await sessionRes.json();
-      if (sessionData.success) {
-        setActiveSession(sessionData.activeSession);
-        setCurrentLecture(sessionData.currentLecture);
+      // Fetch logged-in faculty's today lectures from timetable
+      const lecturesRes = await fetch(getApiUrl("/api/attendance-sessions/faculty-today-lectures"), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const lecturesData = await lecturesRes.json();
+      if (lecturesData.success) {
+        setTodayLectures(lecturesData.lectures || []);
+        setTodayInfo({
+          day: lecturesData.day,
+          currentTime: lecturesData.currentTime,
+          todayDate: lecturesData.todayDate,
+        });
       }
     } catch (error) {
       console.error("Dashboard Data Error:", error);
+    } finally {
+      setLoadingLectures(false);
     }
   };
 
@@ -81,9 +92,9 @@ export default function AdminDashboard({ onLogout }) {
     return () => clearInterval(interval);
   }, [onLogout]);
 
-  // Start attendance session (no face scan — uses JWT)
-  const handleStartAttendance = async () => {
-    setSessionActionLoading(true);
+  // Start attendance for a specific lecture (enforces lecture time bounds)
+  const handleStartAttendance = async (lectureId) => {
+    setSessionActionLoadingId(lectureId);
     setSessionActionMsg("");
     const token = localStorage.getItem("adminToken");
     try {
@@ -93,10 +104,11 @@ export default function AdminDashboard({ onLogout }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ timetableEntryId: lectureId }),
       });
       const data = await res.json();
       if (data.success) {
-        setSessionActionMsg(data.message || "Attendance session started.");
+        setSessionActionMsg(data.message || "Attendance session started. Students can scan face now.");
         await loadDashboardData();
       } else {
         setSessionActionMsg(data.message || "Failed to start attendance session.");
@@ -104,15 +116,14 @@ export default function AdminDashboard({ onLogout }) {
     } catch (err) {
       setSessionActionMsg("Server error. Could not start attendance session.");
     } finally {
-      setSessionActionLoading(false);
-      // Clear message after 5 seconds
-      setTimeout(() => setSessionActionMsg(""), 5000);
+      setSessionActionLoadingId(null);
+      setTimeout(() => setSessionActionMsg(""), 6000);
     }
   };
 
-  // Stop attendance session
-  const handleStopAttendance = async () => {
-    setSessionActionLoading(true);
+  // Stop attendance for a specific lecture
+  const handleStopAttendance = async (lectureId, sessionId) => {
+    setSessionActionLoadingId(lectureId);
     setSessionActionMsg("");
     const token = localStorage.getItem("adminToken");
     try {
@@ -122,10 +133,11 @@ export default function AdminDashboard({ onLogout }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ timetableEntryId: lectureId, sessionId }),
       });
       const data = await res.json();
       if (data.success) {
-        setSessionActionMsg(data.message || "Attendance session stopped.");
+        setSessionActionMsg(data.message || "Attendance session stopped. Further face scans blocked.");
         await loadDashboardData();
       } else {
         setSessionActionMsg(data.message || "Failed to stop attendance session.");
@@ -133,13 +145,10 @@ export default function AdminDashboard({ onLogout }) {
     } catch (err) {
       setSessionActionMsg("Server error. Could not stop attendance session.");
     } finally {
-      setSessionActionLoading(false);
-      setTimeout(() => setSessionActionMsg(""), 5000);
+      setSessionActionLoadingId(null);
+      setTimeout(() => setSessionActionMsg(""), 6000);
     }
   };
-
-  const sessionIsActive = activeSession && activeSession.status === "ACTIVE";
-  const sessionPresentCount = activeSession?.presentCount ?? 0;
 
   // Display name: faculty name or "Admin"
   const displayName = loggedInUser?.name || "Admin";
@@ -263,65 +272,36 @@ export default function AdminDashboard({ onLogout }) {
               </div>
             </div>
 
-            {/* ── Attendance Control Panel ── */}
+            {/* ── Faculty Today Lectures & Attendance Control Panel ── */}
             <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-6 sm:p-8 mb-8">
-              <span className="text-xs uppercase font-bold tracking-wider text-cyan-400">
-                Attendance Control
-              </span>
-              <h3 className="text-2xl font-black text-white mt-1 mb-5">
-                Start / Stop Student Attendance
-              </h3>
-
-              {/* Current Lecture Info */}
-              {currentLecture ? (
-                <div className="bg-slate-800/70 border border-white/10 rounded-2xl p-4 mb-5 text-sm">
-                  <div className="flex flex-wrap justify-between items-center gap-2">
-                    <div>
-                      <p className="font-bold text-white text-base">
-                        {currentLecture.subjectName}
-                        {currentLecture.subjectCode && (
-                          <span className="text-gray-400 font-normal ml-2">({currentLecture.subjectCode})</span>
-                        )}
-                      </p>
-                      <p className="text-gray-400 mt-0.5">
-                        ⏰ {currentLecture.startTime} – {currentLecture.endTime}
-                        {currentLecture.facultyName && (
-                          <span className="ml-3">👤 {currentLecture.facultyName}</span>
-                        )}
-                        {currentLecture.room && (
-                          <span className="ml-3">📍 {currentLecture.room}</span>
-                        )}
-                      </p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-black uppercase ${
-                        sessionIsActive
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                          : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                      }`}
-                    >
-                      {sessionIsActive ? "● Attendance Active" : "○ Not Started"}
-                    </span>
-                  </div>
-                  {sessionIsActive && (
-                    <p className="text-emerald-400 font-semibold text-xs mt-2">
-                      {sessionPresentCount} student(s) marked present so far
-                    </p>
-                  )}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-white/10">
+                <div>
+                  <span className="text-xs uppercase font-bold tracking-wider text-cyan-400">
+                    Attendance Control
+                  </span>
+                  <h3 className="text-2xl font-black text-white mt-1">
+                    My Today's Lectures — {todayInfo.day || "Today"}
+                  </h3>
                 </div>
-              ) : (
-                <div className="bg-slate-800/60 border border-white/10 rounded-2xl p-4 mb-5 text-sm text-gray-400 text-center">
-                  No lecture is currently scheduled in the timetable.
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="px-3 py-1.5 rounded-xl bg-slate-800 border border-white/10 text-cyan-300 font-semibold">
+                    ⏰ Time: <span className="font-bold text-white">{todayInfo.currentTime || "--:--"}</span>
+                  </span>
+                  <span className="px-3 py-1.5 rounded-xl bg-slate-800 border border-white/10 text-gray-300">
+                    👤 Faculty: <span className="font-bold text-white">{displayName}</span>
+                  </span>
                 </div>
-              )}
+              </div>
 
-              {/* Action Message */}
+              {/* Action Message Banner */}
               {sessionActionMsg && (
                 <div
-                  className={`mb-4 p-3.5 rounded-2xl text-sm font-semibold text-center border ${
+                  className={`mb-6 p-4 rounded-2xl text-sm font-semibold text-center border ${
                     sessionActionMsg.toLowerCase().includes("fail") ||
                     sessionActionMsg.toLowerCase().includes("error") ||
-                    sessionActionMsg.toLowerCase().includes("no active")
+                    sessionActionMsg.toLowerCase().includes("cannot") ||
+                    sessionActionMsg.toLowerCase().includes("not allowed") ||
+                    sessionActionMsg.toLowerCase().includes("only allowed")
                       ? "bg-red-500/10 border-red-500/30 text-red-400"
                       : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                   }`}
@@ -330,45 +310,174 @@ export default function AdminDashboard({ onLogout }) {
                 </div>
               )}
 
-              {/* Start / Stop Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                {!sessionIsActive ? (
-                  <button
-                    onClick={handleStartAttendance}
-                    disabled={sessionActionLoading || !currentLecture}
-                    className="flex-1 py-4 rounded-2xl font-bold text-base bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-xl shadow-emerald-500/20 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    {sessionActionLoading ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        Starting...
-                      </>
-                    ) : (
-                      <>▶ Start Attendance</>
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleStopAttendance}
-                    disabled={sessionActionLoading}
-                    className="flex-1 py-4 rounded-2xl font-bold text-base bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-400 hover:to-rose-400 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-xl shadow-red-500/20 transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    {sessionActionLoading ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        Stopping...
-                      </>
-                    ) : (
-                      <>■ Stop Attendance</>
-                    )}
-                  </button>
-                )}
-              </div>
+              {/* Lectures List */}
+              {loadingLectures && todayLectures.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">
+                  <span className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin inline-block mr-2"></span>
+                  Loading today's lectures...
+                </div>
+              ) : todayLectures.length === 0 ? (
+                <div className="bg-slate-800/60 border border-white/10 rounded-2xl p-8 text-center">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-700/50 flex items-center justify-center text-2xl mb-3">
+                    📅
+                  </div>
+                  <h4 className="text-base font-bold text-white mb-1">No Lectures Scheduled Today</h4>
+                  <p className="text-xs text-gray-400 max-w-md mx-auto">
+                    You have no lectures scheduled in the timetable for {todayInfo.day || "today"}. Only your own timetable lectures appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {todayLectures.map((lec) => {
+                    const isLoading = sessionActionLoadingId === lec._id;
+                    const isActive = lec.hasActiveSession;
+                    const isCurrent = lec.isCurrentTime;
+                    const isUpcoming = lec.isUpcoming;
+                    const isPast = lec.isPast;
 
-              {!currentLecture && (
-                <p className="text-gray-500 text-xs mt-3 text-center">
-                  Buttons are enabled only when a lecture is scheduled in the timetable right now.
-                </p>
+                    return (
+                      <div
+                        key={lec._id}
+                        className={`border rounded-2xl p-5 sm:p-6 transition-all duration-300 ${
+                          isActive
+                            ? "bg-emerald-950/25 border-emerald-500/40 shadow-lg shadow-emerald-950/30"
+                            : isCurrent
+                            ? "bg-slate-800/90 border-cyan-500/40"
+                            : "bg-slate-800/40 border-white/5 opacity-80 hover:opacity-100"
+                        }`}
+                      >
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                          {/* Lecture Details */}
+                          <div className="space-y-2 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-xl font-black text-white">
+                                {lec.subjectName}
+                              </h4>
+                              {lec.subjectCode && (
+                                <span className="text-xs px-2.5 py-0.5 rounded-lg bg-slate-700 font-mono text-cyan-300 font-bold">
+                                  {lec.subjectCode}
+                                </span>
+                              )}
+                              {lec.lectureType && (
+                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold uppercase">
+                                  {lec.lectureType}
+                                </span>
+                              )}
+
+                              {/* Live Status Badge */}
+                              {isActive ? (
+                                <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black uppercase flex items-center gap-1.5 animate-pulse">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                  Attendance Active
+                                </span>
+                              ) : isCurrent ? (
+                                <span className="text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold uppercase">
+                                  ● Lecture In Progress
+                                </span>
+                              ) : isUpcoming ? (
+                                <span className="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-medium">
+                                  🕒 Upcoming
+                                </span>
+                              ) : (
+                                <span className="text-xs px-3 py-1 rounded-full bg-slate-700 text-gray-400 font-medium">
+                                  Completed
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Meta Row */}
+                            <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-gray-300">
+                              <span className="font-semibold text-cyan-400">
+                                ⏰ {lec.startTime} – {lec.endTime}
+                              </span>
+                              {lec.room && (
+                                <span>📍 Room: <strong className="text-white">{lec.room}</strong></span>
+                              )}
+                              {lec.semester && (
+                                <span>🎓 Sem: <strong className="text-white">{lec.semester}</strong></span>
+                              )}
+                              {lec.division && (
+                                <span>Div: <strong className="text-white">{lec.division}</strong></span>
+                              )}
+                              {lec.batch && (
+                                <span>Batch: <strong className="text-white">{lec.batch}</strong></span>
+                              )}
+                            </div>
+
+                            {/* Subtext info */}
+                            {isActive ? (
+                              <p className="text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+                                ✓ {lec.presentCount} student(s) marked present • Face attendance enabled
+                              </p>
+                            ) : lec.sessionStatus === "CLOSED" ? (
+                              <p className="text-gray-400 text-xs">
+                                Session ended • Total {lec.presentCount} student(s) marked present
+                              </p>
+                            ) : isCurrent ? (
+                              <p className="text-cyan-300 text-xs">
+                                Lecture is currently ongoing. Click below to open face attendance for students.
+                              </p>
+                            ) : isUpcoming ? (
+                              <p className="text-gray-400 text-xs">
+                                Attendance can only be started when lecture begins at {lec.startTime}.
+                              </p>
+                            ) : (
+                              <p className="text-gray-500 text-xs">
+                                Lecture ended at {lec.endTime}. Attendance cannot be started.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Control Action Buttons */}
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                            {isActive ? (
+                              <button
+                                type="button"
+                                onClick={() => handleStopAttendance(lec._id, lec.sessionId)}
+                                disabled={isLoading}
+                                className="px-6 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 active:scale-[0.98] transition text-white shadow-lg shadow-red-500/25 flex items-center justify-center gap-2"
+                              >
+                                {isLoading ? (
+                                  <>
+                                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                    Stopping...
+                                  </>
+                                ) : (
+                                  <>■ Stop Attendance</>
+                                )}
+                              </button>
+                            ) : isCurrent ? (
+                              <button
+                                type="button"
+                                onClick={() => handleStartAttendance(lec._id)}
+                                disabled={isLoading}
+                                className="px-6 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.98] transition text-white shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2"
+                              >
+                                {isLoading ? (
+                                  <>
+                                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                    Starting...
+                                  </>
+                                ) : (
+                                  <>▶ Start Attendance</>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={true}
+                                title={`Start Attendance allowed only during scheduled lecture time (${lec.startTime} – ${lec.endTime})`}
+                                className="px-6 py-3.5 rounded-xl font-bold text-sm bg-slate-800 border border-white/10 text-gray-500 opacity-40 cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                ▶ Start Attendance
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
 

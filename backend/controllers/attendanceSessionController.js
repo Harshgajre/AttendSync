@@ -3,6 +3,7 @@ const AttendanceSession = require("../models/AttendanceSession");
 const Attendance = require("../models/Attendance");
 const Employee = require("../models/Employee");
 const Student = require("../models/Student");
+const Timetable = require("../models/Timetable");
 const { getCurrentLecture, getCurrentDayName, getCurrentTime24h } = require("./timetableController");
 
 // Calculate Euclidean Distance between two 128-d face descriptor vectors
@@ -731,14 +732,122 @@ const getFacultyCurrentLectureInfo = async (req, res) => {
   }
 };
 
+// GET /api/attendance-sessions/faculty-today-lectures
+// Fetch all lectures scheduled TODAY for the logged-in faculty member
+const getFacultyTodayLectures = async (req, res) => {
+  try {
+    await autoCloseExpiredSessions();
+
+    const facultyName = (req.query.facultyName || req.user?.name || "").trim();
+    const facultyId = req.user?.id;
+    const userRole = req.user?.role;
+    const day = getCurrentDayName();
+    const currentTime = getCurrentTime24h();
+    const todayDate = getTodayDateStr();
+
+    let filter = { day, isActive: true };
+
+    if (userRole !== "admin" || facultyName) {
+      if (facultyName) {
+        const escapedName = facultyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const nameRegex = new RegExp(`^${escapedName}$`, "i");
+        if (facultyId) {
+          filter.$or = [{ facultyName: nameRegex }, { facultyId }];
+        } else {
+          filter.facultyName = nameRegex;
+        }
+      }
+    }
+
+    const lectures = await Timetable.find(filter).sort({ startTime: 1 });
+
+    const enrichedLectures = await Promise.all(
+      lectures.map(async (lec) => {
+        // True strictly when currentTime is between startTime and endTime
+        const isCurrentTime =
+          currentTime >= lec.startTime && currentTime <= lec.endTime;
+        const isUpcoming = currentTime < lec.startTime;
+        const isPast = currentTime > lec.endTime;
+
+        const session = await AttendanceSession.findOne({
+          timetableEntryId: lec._id,
+          date: todayDate,
+        });
+
+        let presentCount = 0;
+        let hasActiveSession = false;
+        let sessionStatus = "NOT_STARTED";
+        let sessionId = null;
+        let actualSessionStartTime = null;
+
+        if (session) {
+          sessionStatus = session.status;
+          sessionId = session._id;
+          actualSessionStartTime = session.actualSessionStartTime;
+          if (session.status === "ACTIVE") {
+            hasActiveSession = true;
+            presentCount = await Attendance.countDocuments({
+              attendanceSessionId: session._id,
+            });
+          } else {
+            presentCount =
+              session.presentCount !== undefined
+                ? session.presentCount
+                : await Attendance.countDocuments({
+                    attendanceSessionId: session._id,
+                  });
+          }
+        }
+
+        return {
+          _id: lec._id,
+          day: lec.day,
+          startTime: lec.startTime,
+          endTime: lec.endTime,
+          subjectCode: lec.subjectCode,
+          subjectName: lec.subjectName,
+          facultyId: lec.facultyId,
+          facultyName: lec.facultyName,
+          room: lec.room,
+          semester: lec.semester,
+          division: lec.division,
+          batch: lec.batch,
+          lectureType: lec.lectureType,
+          isCurrentTime,
+          isUpcoming,
+          isPast,
+          hasActiveSession,
+          sessionStatus,
+          presentCount,
+          sessionId,
+          actualSessionStartTime,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      day,
+      currentTime,
+      todayDate,
+      facultyName: facultyName || (userRole === "admin" ? "All Faculty" : "Faculty"),
+      lectures: enrichedLectures,
+    });
+  } catch (error) {
+    console.error("getFacultyTodayLectures error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch faculty today lectures",
+    });
+  }
+};
+
 // POST /api/attendance-sessions/start-by-login
-// Faculty/HOD logged in via admin dashboard starts the current lecture's session
-// Does NOT require face scan — uses JWT identity (req.user)
+// Faculty starts attendance for a specific lecture (enforces lecture time bounds)
 const startSessionByLogin = async (req, res) => {
   try {
     await autoCloseExpiredSessions();
 
-    // req.user is set by authMiddleware (faculty_admin or admin token)
     const { id: startedById, name: startedByName, employeeRole } = req.user;
 
     if (!startedById) {
@@ -748,21 +857,74 @@ const startSessionByLogin = async (req, res) => {
       });
     }
 
-    // Find current lecture from timetable
-    const { currentLecture, day, currentTime } = await getCurrentLecture();
+    const { timetableEntryId, lectureId } = req.body;
+    const targetLectureId = timetableEntryId || lectureId;
 
-    if (!currentLecture) {
+    const day = getCurrentDayName();
+    const currentTime = getCurrentTime24h();
+    const todayDate = getTodayDateStr();
+
+    let targetLecture = null;
+    if (targetLectureId) {
+      targetLecture = await Timetable.findById(targetLectureId);
+    } else {
+      // Fallback: search for active lecture assigned to this faculty
+      const escapedName = (startedByName || "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      targetLecture = await Timetable.findOne({
+        day,
+        isActive: true,
+        startTime: { $lte: currentTime },
+        endTime: { $gte: currentTime },
+        $or: [
+          { facultyName: new RegExp(`^${escapedName}$`, "i") },
+          { facultyId: startedById },
+        ],
+      });
+    }
+
+    if (!targetLecture) {
       return res.status(400).json({
         success: false,
-        message: "No lecture is currently scheduled. Please check the timetable.",
+        message: "No scheduled lecture found to start attendance.",
         currentTime,
         day,
       });
     }
 
-    const todayDate = getTodayDateStr();
+    // Verify day matches today
+    if (targetLecture.day !== day) {
+      return res.status(400).json({
+        success: false,
+        message: `This lecture is scheduled for ${targetLecture.day}, not today (${day}).`,
+      });
+    }
+
+    // STRICT CHECK: Current time must be within lecture's startTime and endTime
+    if (currentTime < targetLecture.startTime || currentTime > targetLecture.endTime) {
+      return res.status(400).json({
+        success: false,
+        message: `Start Attendance is only allowed during lecture hours (${targetLecture.startTime} – ${targetLecture.endTime}). Current time is ${currentTime}.`,
+      });
+    }
+
+    // Verify faculty ownership
+    const facultyNameClean = (targetLecture.facultyName || "").trim().toLowerCase();
+    const loggedInNameClean = (startedByName || "").trim().toLowerCase();
+    const isOwner =
+      req.user.role === "admin" ||
+      facultyNameClean === loggedInNameClean ||
+      (targetLecture.facultyId && String(targetLecture.facultyId) === String(startedById));
+
+    if (!isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: `You are only authorized to control your own timetable lectures. Assigned to: ${targetLecture.facultyName || "another faculty"}`,
+      });
+    }
+
+    // Check if session exists today
     const existingSession = await AttendanceSession.findOne({
-      timetableEntryId: currentLecture._id,
+      timetableEntryId: targetLecture._id,
       date: todayDate,
     });
 
@@ -774,48 +936,53 @@ const startSessionByLogin = async (req, res) => {
         return res.status(200).json({
           success: true,
           alreadyStarted: true,
-          message: "Attendance session is already active for this lecture.",
+          message: `Attendance session is already active for ${targetLecture.subjectName}.`,
           session: { ...existingSession.toObject(), presentCount },
-          currentLecture,
+          lecture: targetLecture,
         });
       }
-      // Session exists but is CLOSED/COMPLETED — reactivate it
+
+      // Reactivate session
       existingSession.status = "ACTIVE";
       existingSession.startedById = startedById;
       existingSession.startedByModel = "Employee";
-      existingSession.startedByName = startedByName || "Faculty";
+      existingSession.startedByName = startedByName || targetLecture.facultyName || "Faculty";
       existingSession.startedByRole = employeeRole || "faculty";
       existingSession.actualSessionStartTime = getCurrentTimeFormatted();
       await existingSession.save();
 
+      const presentCount = await Attendance.countDocuments({
+        attendanceSessionId: existingSession._id,
+      });
+
       return res.status(200).json({
         success: true,
         alreadyStarted: false,
-        message: `Attendance session restarted for ${currentLecture.subjectName}.`,
-        session: existingSession,
-        currentLecture,
+        message: `Attendance session started for ${targetLecture.subjectName}.`,
+        session: { ...existingSession.toObject(), presentCount },
+        lecture: targetLecture,
       });
     }
 
     // Create new attendance session
     const now = getCurrentTimeFormatted();
     const newSession = new AttendanceSession({
-      timetableEntryId: currentLecture._id,
+      timetableEntryId: targetLecture._id,
       date: todayDate,
-      day: getCurrentDayName(),
-      subjectCode: currentLecture.subjectCode,
-      subjectName: currentLecture.subjectName,
-      facultyId: currentLecture.facultyId || null,
-      facultyName: currentLecture.facultyName || "",
-      startTime: currentLecture.startTime,
-      endTime: currentLecture.endTime,
-      room: currentLecture.room || "",
-      semester: currentLecture.semester || "",
-      division: currentLecture.division || "",
-      batch: currentLecture.batch || "",
+      day: targetLecture.day,
+      subjectCode: targetLecture.subjectCode,
+      subjectName: targetLecture.subjectName,
+      facultyId: targetLecture.facultyId || startedById || null,
+      facultyName: targetLecture.facultyName || startedByName || "",
+      startTime: targetLecture.startTime,
+      endTime: targetLecture.endTime,
+      room: targetLecture.room || "",
+      semester: targetLecture.semester || "",
+      division: targetLecture.division || "",
+      batch: targetLecture.batch || "",
       startedById: startedById,
       startedByModel: "Employee",
-      startedByName: startedByName || "Faculty",
+      startedByName: startedByName || targetLecture.facultyName || "Faculty",
       startedByRole: employeeRole || "faculty",
       actualSessionStartTime: now,
       status: "ACTIVE",
@@ -827,30 +994,12 @@ const startSessionByLogin = async (req, res) => {
     res.status(201).json({
       success: true,
       alreadyStarted: false,
-      message: `Attendance session started for ${currentLecture.subjectName}.`,
+      message: `Attendance session started for ${targetLecture.subjectName}.`,
       session: newSession,
-      currentLecture,
+      lecture: targetLecture,
     });
   } catch (error) {
     console.error("startSessionByLogin error:", error);
-    if (error.code === 11000) {
-      const todayDate = getTodayDateStr();
-      const { currentLecture } = await getCurrentLecture();
-      if (currentLecture) {
-        const session = await AttendanceSession.findOne({
-          timetableEntryId: currentLecture._id,
-          date: todayDate,
-        });
-        if (session) {
-          return res.status(200).json({
-            success: true,
-            alreadyStarted: true,
-            message: "Attendance session is already active.",
-            session,
-          });
-        }
-      }
-    }
     res.status(500).json({
       success: false,
       message: error.message || "Failed to start attendance session",
@@ -859,30 +1008,40 @@ const startSessionByLogin = async (req, res) => {
 };
 
 // PUT /api/attendance-sessions/stop-current
-// Faculty/HOD logged in via admin dashboard stops the current active session immediately
+// Faculty stops attendance for a specific lecture session
 const stopCurrentSession = async (req, res) => {
   try {
     await autoCloseExpiredSessions();
 
-    const { currentLecture } = await getCurrentLecture();
+    const { timetableEntryId, sessionId } = req.body;
     const todayDate = getTodayDateStr();
 
     let activeSession = null;
-
-    if (currentLecture) {
+    if (sessionId) {
+      activeSession = await AttendanceSession.findById(sessionId);
+    } else if (timetableEntryId) {
       activeSession = await AttendanceSession.findOne({
-        timetableEntryId: currentLecture._id,
+        timetableEntryId,
         date: todayDate,
         status: "ACTIVE",
       });
-    }
-
-    // Fallback: find any active session for today
-    if (!activeSession) {
+    } else {
+      // Find active session for this faculty
+      const escapedName = (req.user?.name || "").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       activeSession = await AttendanceSession.findOne({
         date: todayDate,
         status: "ACTIVE",
+        $or: [
+          { facultyName: new RegExp(`^${escapedName}$`, "i") },
+          { startedById: req.user?.id },
+        ],
       });
+      if (!activeSession) {
+        activeSession = await AttendanceSession.findOne({
+          date: todayDate,
+          status: "ACTIVE",
+        });
+      }
     }
 
     if (!activeSession) {
@@ -901,7 +1060,7 @@ const stopCurrentSession = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Attendance session stopped. ${presentCount} student(s) marked present.`,
+      message: `Attendance session stopped for ${activeSession.subjectName}. ${presentCount} student(s) marked present.`,
       session: { ...activeSession.toObject(), presentCount },
     });
   } catch (error) {
@@ -922,6 +1081,8 @@ module.exports = {
   getStudentTodayTimetableAttendance,
   getStudentTimetableHistory,
   getFacultyCurrentLectureInfo,
+  getFacultyTodayLectures,
   startSessionByLogin,
   stopCurrentSession,
 };
+

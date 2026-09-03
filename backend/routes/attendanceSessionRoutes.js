@@ -10,12 +10,16 @@ const {
   getStudentTodayTimetableAttendance,
   getStudentTimetableHistory,
   getFacultyCurrentLectureInfo,
+  getFacultyTodayLectures,
   startSessionByLogin,
   stopCurrentSession,
 } = require("../controllers/attendanceSessionController");
 
 // Faculty/HOD face scan to start session
 router.post("/start", startAttendanceSession);
+
+// Faculty today's lectures from timetable (with live timing & session status)
+router.get("/faculty-today-lectures", authMiddleware, getFacultyTodayLectures);
 
 // Faculty/HOD logged-in (admin dashboard) start session — no face scan required
 router.post("/start-by-login", authMiddleware, startSessionByLogin);

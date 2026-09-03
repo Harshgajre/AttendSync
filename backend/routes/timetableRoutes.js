@@ -8,6 +8,7 @@ const {
   updateTimetableEntry,
   deleteTimetableEntry,
   getLecturesByDay,
+  getFacultyNames,
 } = require("../controllers/timetableController");
 
 // Public: Get current lecture based on day + time
@@ -20,6 +21,8 @@ router.get("/", getAllTimetableEntries);
 router.get("/day/:day", getLecturesByDay);
 
 // Public: Get single entry
+// NOTE: must be after all named routes so :id doesn't shadow them
+router.get("/faculty-names", getFacultyNames);
 router.get("/:id", getTimetableEntryById);
 
 // Admin-managed routes
