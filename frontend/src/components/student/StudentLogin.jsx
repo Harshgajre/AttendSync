@@ -254,11 +254,10 @@ export default function StudentLogin() {
               setError("");
               setSuccessMsg("");
             }}
-            className={`flex-1 py-3 text-sm sm:text-base font-bold rounded-xl transition-all duration-300 ${
-              !isRegister
-                ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20"
-                : "text-gray-400 hover:text-white"
-            }`}
+            className={`flex-1 py-3 text-sm sm:text-base font-bold rounded-xl transition-all duration-300 ${!isRegister
+              ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20"
+              : "text-gray-400 hover:text-white"
+              }`}
           >
             Sign In
           </button>
@@ -269,11 +268,10 @@ export default function StudentLogin() {
               setError("");
               setSuccessMsg("");
             }}
-            className={`flex-1 py-3 text-sm sm:text-base font-bold rounded-xl transition-all duration-300 ${
-              isRegister
-                ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20"
-                : "text-gray-400 hover:text-white"
-            }`}
+            className={`flex-1 py-3 text-sm sm:text-base font-bold rounded-xl transition-all duration-300 ${isRegister
+              ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20"
+              : "text-gray-400 hover:text-white"
+              }`}
           >
             Register
           </button>
@@ -321,11 +319,9 @@ export default function StudentLogin() {
                   onChange={(e) => setSemester(e.target.value)}
                   className="w-full bg-slate-800/80 border border-white/10 focus:border-cyan-400 p-4 rounded-2xl outline-none text-white transition-all"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                    <option key={s} value={String(s)} className="bg-slate-900 text-white">
-                      Semester {s}
-                    </option>
-                  ))}
+                  <option value="7" className="bg-slate-900 text-white">
+                    Semester 7
+                  </option>
                 </select>
               </div>
 
@@ -472,8 +468,8 @@ export default function StudentLogin() {
             {loading
               ? "Please wait..."
               : isRegister
-              ? "Create Student Account"
-              : "Login as Student"}
+                ? "Create Student Account"
+                : "Login as Student"}
           </button>
         </div>
 
