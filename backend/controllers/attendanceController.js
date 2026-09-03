@@ -475,6 +475,10 @@ const getAllAttendanceRecords = async (req, res) => {
       ];
     }
 
+    if (req.user && req.user.role === "faculty_admin" && req.user.name) {
+      query.facultyName = new RegExp(`^${req.user.name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+    }
+
     const records = await Attendance.find(query)
       .sort({ date: -1, timestamp: -1 })
       .limit(Number(limit));
@@ -509,14 +513,23 @@ const getAttendanceStats = async (req, res) => {
     const totalFaceRegistered = faceRegisteredStudents + faceRegisteredEmployees;
     const totalUsers = totalStudents + totalEmployees;
 
-    const todayAttendanceCount = await Attendance.countDocuments({ date: todayDate });
+    let statsQuery = { date: todayDate };
+    let slotStatsQuery = { date: todayDate };
+    
+    if (req.user && req.user.role === "faculty_admin" && req.user.name) {
+      const facultyNameRegex = new RegExp(`^${req.user.name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+      statsQuery.facultyName = facultyNameRegex;
+      slotStatsQuery.facultyName = facultyNameRegex;
+    }
+
+    const todayAttendanceCount = await Attendance.countDocuments(statsQuery);
 
     const { activeSlot, allSlots } = await getActiveSlotForCurrentTime();
 
     let currentSlotAttendanceCount = 0;
     if (activeSlot) {
       currentSlotAttendanceCount = await Attendance.countDocuments({
-        date: todayDate,
+        ...slotStatsQuery,
         slotId: activeSlot._id,
       });
     }
@@ -525,7 +538,7 @@ const getAttendanceStats = async (req, res) => {
     const slotBreakdown = [];
     for (const slot of allSlots) {
       const count = await Attendance.countDocuments({
-        date: todayDate,
+        ...slotStatsQuery,
         slotId: slot._id,
       });
       slotBreakdown.push({

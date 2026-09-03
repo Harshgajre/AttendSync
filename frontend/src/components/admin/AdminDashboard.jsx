@@ -176,9 +176,8 @@ export default function AdminDashboard({ onLogout }) {
 
       {/* Sidebar */}
       <div
-        className={`fixed lg:relative z-40 top-0 left-0 h-full w-72 bg-slate-900/95 backdrop-blur-xl border-r border-cyan-500/10 p-6 flex flex-col justify-between transition-all duration-300 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`fixed lg:relative z-40 top-0 left-0 h-full w-72 bg-slate-900/95 backdrop-blur-xl border-r border-cyan-500/10 p-6 flex flex-col justify-between transition-all duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         <div>
           <h1 className="text-4xl font-black mb-8">
@@ -190,7 +189,7 @@ export default function AdminDashboard({ onLogout }) {
               { id: "dashboard", label: "Dashboard" },
               { id: "timetable", label: "Timetable / Lectures 📅" },
               { id: "slots", label: "Attendance Slots 🕒" },
-              { id: "students", label: "Manage Students" },
+              { id: "students", label: "Registered Students 🎓" },
               { id: "reports", label: "Attendance Reports" },
               { id: "semester", label: "Semester Control" },
               { id: "settings", label: "System Settings" },
@@ -201,11 +200,10 @@ export default function AdminDashboard({ onLogout }) {
                   setActiveSection(section.id);
                   setSidebarOpen(false);
                 }}
-                className={`w-full py-3.5 px-5 rounded-2xl font-bold text-left text-sm transition-all duration-300 ${
-                  activeSection === section.id
-                    ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20"
-                    : "bg-slate-800/50 hover:bg-slate-700 text-gray-300"
-                }`}
+                className={`w-full py-3.5 px-5 rounded-2xl font-bold text-left text-sm transition-all duration-300 ${activeSection === section.id
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20"
+                  : "bg-slate-800/50 hover:bg-slate-700 text-gray-300"
+                  }`}
               >
                 {section.label}
               </button>
@@ -296,15 +294,14 @@ export default function AdminDashboard({ onLogout }) {
               {/* Action Message Banner */}
               {sessionActionMsg && (
                 <div
-                  className={`mb-6 p-4 rounded-2xl text-sm font-semibold text-center border ${
-                    sessionActionMsg.toLowerCase().includes("fail") ||
+                  className={`mb-6 p-4 rounded-2xl text-sm font-semibold text-center border ${sessionActionMsg.toLowerCase().includes("fail") ||
                     sessionActionMsg.toLowerCase().includes("error") ||
                     sessionActionMsg.toLowerCase().includes("cannot") ||
                     sessionActionMsg.toLowerCase().includes("not allowed") ||
                     sessionActionMsg.toLowerCase().includes("only allowed")
-                      ? "bg-red-500/10 border-red-500/30 text-red-400"
-                      : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  }`}
+                    ? "bg-red-500/10 border-red-500/30 text-red-400"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    }`}
                 >
                   {sessionActionMsg}
                 </div>
@@ -338,13 +335,12 @@ export default function AdminDashboard({ onLogout }) {
                     return (
                       <div
                         key={lec._id}
-                        className={`border rounded-2xl p-5 sm:p-6 transition-all duration-300 ${
-                          isActive
-                            ? "bg-emerald-950/25 border-emerald-500/40 shadow-lg shadow-emerald-950/30"
-                            : isCurrent
+                        className={`border rounded-2xl p-5 sm:p-6 transition-all duration-300 ${isActive
+                          ? "bg-emerald-950/25 border-emerald-500/40 shadow-lg shadow-emerald-950/30"
+                          : isCurrent
                             ? "bg-slate-800/90 border-cyan-500/40"
                             : "bg-slate-800/40 border-white/5 opacity-80 hover:opacity-100"
-                        }`}
+                          }`}
                       >
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                           {/* Lecture Details */}

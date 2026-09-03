@@ -15,11 +15,11 @@ const {
 router.post("/login", loginAdmin);
 router.post("/faculty-login", loginFacultyAsAdmin);
 
-// Protected Admin Routes (JWT required + role === 'admin')
+// Protected Admin Routes
 router.get("/me", authMiddleware, adminOnly, getAdminProfile);
-// Dashboard accessible by both admin and faculty_admin
+// Dashboard, student list, and student deletion accessible by both admin and faculty_admin
 router.get("/dashboard", authMiddleware, facultyAdminOrAdmin, getDashboardData);
-router.get("/students", authMiddleware, adminOnly, getAllStudents);
-router.delete("/student/:id", authMiddleware, adminOnly, deleteStudent);
+router.get("/students", authMiddleware, facultyAdminOrAdmin, getAllStudents);
+router.delete("/student/:id", authMiddleware, facultyAdminOrAdmin, deleteStudent);
 
 module.exports = router;

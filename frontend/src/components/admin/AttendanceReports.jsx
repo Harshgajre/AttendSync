@@ -39,9 +39,12 @@ export default function AttendanceReports() {
       if (filterRole) params.append("userRole", filterRole);
       if (search) params.append("search", search);
 
+      const token = localStorage.getItem("adminToken");
+      const headers = { Authorization: `Bearer ${token}` };
+
       const [recordsRes, statsRes] = await Promise.all([
-        fetch(getApiUrl(`/api/attendance/all?${params.toString()}`)),
-        fetch(getApiUrl("/api/attendance/stats")),
+        fetch(getApiUrl(`/api/attendance/all?${params.toString()}`), { headers }),
+        fetch(getApiUrl("/api/attendance/stats"), { headers }),
       ]);
 
       const recordsData = await recordsRes.json();

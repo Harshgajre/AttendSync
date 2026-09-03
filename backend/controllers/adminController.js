@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 const Employee = require("../models/Employee");
 const Student = require("../models/Student");
+const Attendance = require("../models/Attendance");
 
 const generateAdminToken = (admin) => {
   const secret = process.env.JWT_SECRET || "attendsync_super_secret_jwt_key_2026_secure";
@@ -229,7 +230,34 @@ const getDashboardData = async (req, res) => {
 // Get All Students (Admin view)
 const getAllStudents = async (req, res) => {
   try {
-    const students = await Student.find().select("-password");
+    const students = await Student.find().select("-password").lean();
+
+    if (req.user && req.user.role === "faculty_admin" && req.user.name) {
+      const loggedInName = req.user.name.trim();
+
+      const facultyAttendances = await Attendance.aggregate([
+        {
+          $match: {
+            facultyName: new RegExp(`^${loggedInName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")
+          }
+        },
+        {
+          $group: {
+            _id: "$userId",
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const attendanceMap = {};
+      facultyAttendances.forEach((record) => {
+        attendanceMap[record._id.toString()] = record.count;
+      });
+
+      students.forEach((student) => {
+        student.attendance = attendanceMap[student._id.toString()] || 0;
+      });
+    }
 
     res.status(200).json({
       success: true,
