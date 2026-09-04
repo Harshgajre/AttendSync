@@ -187,9 +187,9 @@ export default function AdminDashboard({ onLogout }) {
           <div className="space-y-2.5">
             {[
               { id: "dashboard", label: "Dashboard" },
-              { id: "timetable", label: "Timetable / Lectures 📅" },
-              { id: "slots", label: "Attendance Slots 🕒" },
-              { id: "students", label: "Registered Students 🎓" },
+              { id: "timetable", label: "Timetable / Lectures " },
+              { id: "slots", label: "Attendance Slots " },
+              { id: "students", label: "Registered Students " },
               { id: "reports", label: "Attendance Reports" },
               { id: "semester", label: "Semester Control" },
               { id: "settings", label: "System Settings" },
