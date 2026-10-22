@@ -127,7 +127,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
 
       if (!extractResult.success) {
         setScanState("failed");
-        setStatusMessage(extractResult.message);
+        setStatusMessage("Face Not Match");
         setIsProcessing(false);
         return;
       }
@@ -158,8 +158,15 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
           setStatusMessage(data.message || "Attendance session is not active. Please wait for faculty to start it.");
         } else {
           setScanState("failed");
-          setStatusMessage(data.message || "Face not recognized. Please register your face first.");
+          setStatusMessage("Face Not Match");
         }
+        setIsProcessing(false);
+        return;
+      }
+
+      if (data.faceMatched === false) {
+        setScanState("failed");
+        setStatusMessage("Face Not Match");
         setIsProcessing(false);
         return;
       }
@@ -169,7 +176,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
 
       if (data.alreadyMarked) {
         setScanState("already_marked");
-        setStatusMessage(data.message || "Attendance already marked for this lecture.");
+        setStatusMessage(data.message || "Attendance already marked for today.");
       } else {
         setScanState("success");
         setStatusMessage(data.message || "Face Verified & Attendance Marked Successfully");
@@ -272,7 +279,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
               {resultData?.message}
             </p>
 
-            {/* Student & Lecture Details Card */}
+            {/* Student & Attendance Details Card */}
             <div className="w-full bg-slate-900/90 border border-white/10 rounded-2xl p-5 text-left space-y-3 text-sm">
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
                 <span className="text-gray-400">Student Name</span>
@@ -282,37 +289,44 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
               </div>
 
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <span className="text-gray-400">Subject</span>
-                <span className="font-bold text-cyan-400">
-                  {resultData?.lecture?.subjectName || resultData?.attendance?.subjectName}
+                <span className="text-gray-400">Student ID</span>
+                <span className="font-mono text-xs text-cyan-300 font-bold">
+                  {resultData?.user?.studentId || resultData?.user?.id || resultData?.attendance?.studentId || resultData?.attendance?.userId || "N/A"}
                 </span>
               </div>
 
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <span className="text-gray-400">Lecture Time</span>
+                <span className="text-gray-400">Date</span>
                 <span className="font-semibold text-white">
-                  {resultData?.lecture?.startTime || resultData?.attendance?.lectureStartTime} – {resultData?.lecture?.endTime || resultData?.attendance?.lectureEndTime}
+                  {resultData?.attendance?.date || new Date().toISOString().split("T")[0]}
                 </span>
               </div>
 
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <span className="text-gray-400">Faculty</span>
-                <span className="font-semibold text-gray-300">
-                  {resultData?.lecture?.faculty || resultData?.attendance?.facultyName || "Assigned Faculty"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                <span className="text-gray-400">Check-In Time</span>
+                <span className="text-gray-400">Time</span>
                 <span className="font-semibold text-white">
-                  {resultData?.attendance?.checkInTime || "Just Now"}
+                  {resultData?.attendance?.time || resultData?.attendance?.checkInTime || "Just Now"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <span className="text-gray-400">Status</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  {resultData?.attendance?.status || "Present"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                <span className="text-gray-400">Subject / Session</span>
+                <span className="font-semibold text-cyan-400">
+                  {resultData?.lecture?.subjectName || resultData?.attendance?.subjectName || "Daily Attendance"}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Match Confidence</span>
+                <span className="text-gray-400">Biometric Verification</span>
                 <span className="font-bold text-emerald-400">
-                  {resultData?.similarityScore || 98}% Verified
+                  {resultData?.similarityScore || 98}% Match Verified
                 </span>
               </div>
             </div>
@@ -383,6 +397,11 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
 
             {/* Status Message */}
             <div className="mt-4 text-center">
+              {scanState === "failed" && (
+                <div className="mb-2 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-black uppercase tracking-wider animate-pulse">
+                  <span>Face Not Match</span>
+                </div>
+              )}
               <p
                 className={`text-sm font-bold flex items-center justify-center gap-2 ${
                   scanState === "failed" || scanState === "ineligible" || scanState === "no_session"
@@ -392,7 +411,7 @@ export default function FaceAttendanceModal({ isOpen, onClose, onAttendanceSucce
                     : "text-gray-300"
                 }`}
               >
-                {statusMessage}
+                {scanState === "failed" ? "Face Not Match" : statusMessage}
               </p>
             </div>
 

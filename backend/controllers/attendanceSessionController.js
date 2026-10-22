@@ -389,173 +389,120 @@ const markStudentAttendanceByFace = async (req, res) => {
       return res.status(404).json({
         success: false,
         faceMatched: false,
-        message: "Face not recognized. Please register your face first.",
+        message: "Face Not Match",
         distance: lowestDistance < 100 ? lowestDistance.toFixed(3) : null,
       });
     }
 
     const similarityScore = Math.max(0, Math.min(100, Math.round((1 - lowestDistance) * 100)));
-
-    // 2. Find current active session matching student's lecture
-    const { currentLecture, day, currentTime } = await getCurrentLecture(bestMatch);
-
-    if (!currentLecture) {
-      return res.status(400).json({
-        success: false,
-        faceMatched: true,
-        user: { id: bestMatch._id, name: bestMatch.name },
-        message: "No lecture is currently scheduled for your division/batch at this time.",
-        currentTime,
-        day,
-      });
-    }
-
     const todayDate = getTodayDateStr();
-    const activeSession = await AttendanceSession.findOne({
-      timetableEntryId: currentLecture._id,
-      date: todayDate,
-      status: "ACTIVE",
-    });
+    const checkInTime = getCurrentTimeFormatted();
 
-    if (!activeSession) {
-      return res.status(400).json({
-        success: false,
-        faceMatched: true,
-        user: { id: bestMatch._id, name: bestMatch.name },
-        message: `No active attendance session for ${currentLecture.subjectName}. Please wait for faculty to start the session.`,
-        currentLecture: {
-          subjectName: currentLecture.subjectName,
-          startTime: currentLecture.startTime,
-          endTime: currentLecture.endTime,
-        },
-      });
-    }
-
-    // 3. Check eligibility (semester match; division/batch match if set in timetable)
-    const sessionSemester = activeSession.semester;
-    const sessionDivision = activeSession.division;
-    const sessionBatch = activeSession.batch;
-
-    if (sessionSemester && bestMatch.semester && sessionSemester !== bestMatch.semester) {
-      return res.status(403).json({
-        success: false,
-        faceMatched: true,
-        eligible: false,
-        message: `You are not eligible for this lecture. This lecture is for Semester ${sessionSemester}, but you are in Semester ${bestMatch.semester}.`,
-        user: { id: bestMatch._id, name: bestMatch.name },
-        similarityScore,
-      });
-    }
-
-    if (sessionDivision && bestMatch.division && sessionDivision !== bestMatch.division) {
-      return res.status(403).json({
-        success: false,
-        faceMatched: true,
-        eligible: false,
-        message: `You are not eligible for this lecture. This lecture is for Division ${sessionDivision}, but you are in Division ${bestMatch.division}.`,
-        user: { id: bestMatch._id, name: bestMatch.name },
-        similarityScore,
-      });
-    }
-
-    if (sessionBatch && bestMatch.batch && sessionBatch !== bestMatch.batch) {
-      return res.status(403).json({
-        success: false,
-        faceMatched: true,
-        eligible: false,
-        message: `You are not eligible for this lecture. This lecture is for Batch ${sessionBatch}, but you are in Batch ${bestMatch.batch}.`,
-        user: { id: bestMatch._id, name: bestMatch.name },
-        similarityScore,
-      });
-    }
-
-    // 4. Check for duplicate attendance
-    const existing = await Attendance.findOne({
+    // Prevent duplicate attendance for the same student on the same day
+    const existingAttendanceToday = await Attendance.findOne({
       userId: bestMatch._id,
       date: todayDate,
-      timetableEntryId: currentLecture._id,
     });
 
-    if (existing) {
+    if (existingAttendanceToday) {
       return res.status(200).json({
         success: true,
         alreadyMarked: true,
         faceMatched: true,
-        eligible: true,
-        message: `Attendance already marked for ${activeSession.subjectName}.`,
+        message: "Attendance already marked for today.",
         user: {
           id: bestMatch._id,
+          studentId: bestMatch._id.toString(),
           name: bestMatch.name,
           role: "Student",
-          collegeOrCompany: bestMatch.college,
+          collegeOrCompany: bestMatch.college || "",
           faceImage: bestMatch.faceImage || "",
         },
-        lecture: {
-          subjectName: activeSession.subjectName,
-          subjectCode: activeSession.subjectCode,
-          startTime: activeSession.startTime,
-          endTime: activeSession.endTime,
-          faculty: activeSession.facultyName,
-        },
-        attendance: existing,
+        attendance: existingAttendanceToday,
         similarityScore,
       });
     }
 
-    // 5. Mark attendance
-    const checkInTime = getCurrentTimeFormatted();
+    // Check if an active timetable session matches student's schedule
+    let activeSession = null;
+    let currentLecture = null;
+    try {
+      const lectureInfo = await getCurrentLecture(bestMatch);
+      currentLecture = lectureInfo?.currentLecture;
+      if (currentLecture) {
+        activeSession = await AttendanceSession.findOne({
+          timetableEntryId: currentLecture._id,
+          date: todayDate,
+          status: "ACTIVE",
+        });
+      }
+    } catch (lectureErr) {
+      console.warn("Lecture lookup warning:", lectureErr.message);
+    }
+
+    // Mark attendance and save student's name, ID, date, time, and status
     const newAttendance = new Attendance({
       userId: bestMatch._id,
+      studentId: bestMatch._id.toString(),
       userModel: "Student",
       userName: bestMatch.name,
       userRole: "Student",
       collegeOrCompany: bestMatch.college || "",
       date: todayDate,
-      attendanceSessionId: activeSession._id,
-      timetableEntryId: currentLecture._id,
-      subjectCode: activeSession.subjectCode,
-      subjectName: activeSession.subjectName,
-      facultyName: activeSession.facultyName,
-      lectureStartTime: activeSession.startTime,
-      lectureEndTime: activeSession.endTime,
-      room: activeSession.room || "",
+      time: checkInTime,
+      checkInTime,
+      status: "Present",
+      verificationMethod: "FACE",
+      similarityScore,
+      attendanceMode: activeSession ? "TIMETABLE" : "GENERAL",
+      attendanceSessionId: activeSession ? activeSession._id : null,
+      timetableEntryId: activeSession && currentLecture ? currentLecture._id : null,
+      subjectCode: activeSession ? activeSession.subjectCode : (currentLecture?.subjectCode || ""),
+      subjectName: activeSession ? activeSession.subjectName : (currentLecture?.subjectName || "Daily Attendance"),
+      facultyName: activeSession ? activeSession.facultyName : (currentLecture?.facultyName || ""),
+      lectureStartTime: activeSession ? activeSession.startTime : "",
+      lectureEndTime: activeSession ? activeSession.endTime : "",
+      room: activeSession ? (activeSession.room || "") : "",
       semester: bestMatch.semester || "",
       division: bestMatch.division || "",
       batch: bestMatch.batch || "",
-      checkInTime,
       timestamp: new Date(),
-      verificationMethod: "FACE",
-      status: "Present",
-      similarityScore,
-      attendanceMode: "TIMETABLE",
     });
 
     await newAttendance.save();
 
     // Update student attendance count and session present count
     await Student.findByIdAndUpdate(bestMatch._id, { $inc: { attendance: 1 } });
-    await AttendanceSession.findByIdAndUpdate(activeSession._id, { $inc: { presentCount: 1 } });
+    if (activeSession) {
+      await AttendanceSession.findByIdAndUpdate(activeSession._id, { $inc: { presentCount: 1 } });
+    }
 
     res.status(201).json({
       success: true,
       alreadyMarked: false,
       faceMatched: true,
-      eligible: true,
-      message: `Face Verified Successfully. Attendance Marked for ${activeSession.subjectName}.`,
+      message: `Face Verified Successfully! Attendance marked for ${bestMatch.name}.`,
       user: {
         id: bestMatch._id,
+        studentId: bestMatch._id.toString(),
         name: bestMatch.name,
         role: "Student",
         collegeOrCompany: bestMatch.college || "",
         faceImage: bestMatch.faceImage || "",
       },
-      lecture: {
+      lecture: activeSession ? {
         subjectName: activeSession.subjectName,
         subjectCode: activeSession.subjectCode,
         startTime: activeSession.startTime,
         endTime: activeSession.endTime,
         faculty: activeSession.facultyName,
         room: activeSession.room,
+      } : {
+        subjectName: currentLecture?.subjectName || "Daily Attendance",
+        subjectCode: currentLecture?.subjectCode || "ATTEND",
+        startTime: checkInTime,
+        endTime: "",
+        faculty: currentLecture?.facultyName || "System Verified",
       },
       attendance: newAttendance,
       similarityScore,

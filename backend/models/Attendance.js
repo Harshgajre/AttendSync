@@ -94,10 +94,18 @@ const attendanceSchema = new mongoose.Schema(
       default: "",
     },
 
+    studentId: {
+      type: String,
+      default: "",
+    },
     // --- COMMON FIELDS ---
     checkInTime: {
       type: String, // e.g. "09:35 AM"
       required: true,
+    },
+    time: {
+      type: String, // e.g. "09:35 AM"
+      default: "",
     },
     timestamp: {
       type: Date,
@@ -120,8 +128,8 @@ const attendanceSchema = new mongoose.Schema(
     // Track attendance mode
     attendanceMode: {
       type: String,
-      default: "TIMETABLE", // "TIMETABLE" or "LEGACY_SLOT"
-      enum: ["TIMETABLE", "LEGACY_SLOT"],
+      default: "TIMETABLE", // "TIMETABLE", "LEGACY_SLOT", or "GENERAL"
+      enum: ["TIMETABLE", "LEGACY_SLOT", "GENERAL"],
     },
   },
   {

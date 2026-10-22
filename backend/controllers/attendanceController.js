@@ -1,4 +1,7 @@
 const mongoose = require("mongoose");
+const path = require("path");
+const fs = require("fs");
+const xlsx = require("xlsx");
 const Attendance = require("../models/Attendance");
 const AttendanceSlot = require("../models/AttendanceSlot");
 const Timetable = require("../models/Timetable");
@@ -120,7 +123,7 @@ const markAttendanceByFaceScan = async (req, res) => {
       return res.status(404).json({
         success: false,
         faceMatched: false,
-        message: "Face not recognized. Please try again or register your face first.",
+        message: "Face Not Match",
         distance: lowestDistance < 100 ? lowestDistance.toFixed(3) : null,
       });
     }
@@ -130,89 +133,54 @@ const markAttendanceByFaceScan = async (req, res) => {
     const todayDate = getTodayDateStr();
     const formattedCheckIn = getCurrentTimeFormatted();
 
+    // Prevent duplicate attendance for the same student on the same day
+    if (bestMatch.userType === "Student") {
+      const existingAttendanceToday = await Attendance.findOne({
+        userId: matchedUser._id,
+        date: todayDate,
+      });
+
+      if (existingAttendanceToday) {
+        return res.status(200).json({
+          success: true,
+          alreadyMarked: true,
+          faceMatched: true,
+          message: "Attendance already marked for today.",
+          user: {
+            id: matchedUser._id,
+            studentId: matchedUser._id.toString(),
+            name: matchedUser.name,
+            role: "Student",
+            collegeOrCompany: matchedUser.college || "",
+            faceImage: matchedUser.faceImage || "",
+          },
+          attendance: existingAttendanceToday,
+          similarityScore: similarityPercentage,
+        });
+      }
+    }
+
     // ─── CHECK TIMETABLE SESSION (Priority for lectures) ───
     const { currentLecture } = await getCurrentLecture();
-    if (currentLecture) {
+    if (currentLecture && bestMatch.userType === "Student") {
       const activeSession = await AttendanceSession.findOne({
         timetableEntryId: currentLecture._id,
         date: todayDate,
         status: "ACTIVE",
       });
 
-      if (bestMatch.userType === "Student") {
-        if (!activeSession) {
-          return res.status(400).json({
-            success: false,
-            faceMatched: true,
-            user: {
-              id: matchedUser._id,
-              name: matchedUser.name,
-              role: "Student",
-              collegeOrCompany: matchedUser.college,
-            },
-            message: `Lecture '${currentLecture.subjectName}' is ongoing, but the faculty has not started the attendance session yet.`,
-            currentLecture: {
-              subjectName: currentLecture.subjectName,
-              subjectCode: currentLecture.subjectCode,
-              startTime: currentLecture.startTime,
-              endTime: currentLecture.endTime,
-              faculty: currentLecture.facultyName,
-            },
-          });
-        }
-
-        // Check eligibility
-        if (activeSession.semester && matchedUser.semester && activeSession.semester !== matchedUser.semester) {
-          return res.status(403).json({
-            success: false,
-            faceMatched: true,
-            eligible: false,
-            message: `You are not eligible for this lecture (Semester ${activeSession.semester}). You are in Semester ${matchedUser.semester}.`,
-            user: { id: matchedUser._id, name: matchedUser.name },
-            similarityScore: similarityPercentage,
-          });
-        }
-
-        // Duplicate Check for student + date + timetableEntryId
-        const existingTimetableAttendance = await Attendance.findOne({
-          userId: matchedUser._id,
-          date: todayDate,
-          timetableEntryId: currentLecture._id,
-        });
-
-        if (existingTimetableAttendance) {
-          return res.status(200).json({
-            success: true,
-            alreadyMarked: true,
-            faceMatched: true,
-            message: `Attendance already marked for ${activeSession.subjectName}`,
-            user: {
-              id: matchedUser._id,
-              name: matchedUser.name,
-              role: "Student",
-              collegeOrCompany: matchedUser.college,
-              faceImage: matchedUser.faceImage || "",
-            },
-            lecture: {
-              subjectName: activeSession.subjectName,
-              subjectCode: activeSession.subjectCode,
-              startTime: activeSession.startTime,
-              endTime: activeSession.endTime,
-              faculty: activeSession.facultyName,
-            },
-            attendance: existingTimetableAttendance,
-            similarityScore: similarityPercentage,
-          });
-        }
-
+      if (activeSession) {
         // Create new Timetable Attendance record
         const newTimetableAttendance = new Attendance({
           userId: matchedUser._id,
+          studentId: matchedUser._id.toString(),
           userModel: "Student",
           userName: matchedUser.name,
           userRole: "Student",
           collegeOrCompany: matchedUser.college || "",
           date: todayDate,
+          time: formattedCheckIn,
+          checkInTime: formattedCheckIn,
           attendanceSessionId: activeSession._id,
           timetableEntryId: currentLecture._id,
           subjectCode: activeSession.subjectCode,
@@ -224,7 +192,6 @@ const markAttendanceByFaceScan = async (req, res) => {
           semester: matchedUser.semester || "",
           division: matchedUser.division || "",
           batch: matchedUser.batch || "",
-          checkInTime: formattedCheckIn,
           timestamp: new Date(),
           verificationMethod: "FACE",
           status: "Present",
@@ -243,6 +210,7 @@ const markAttendanceByFaceScan = async (req, res) => {
           message: `Face Verified Successfully! Attendance marked for ${activeSession.subjectName}.`,
           user: {
             id: matchedUser._id,
+            studentId: matchedUser._id.toString(),
             name: matchedUser.name,
             role: "Student",
             collegeOrCompany: matchedUser.college || "",
@@ -314,11 +282,13 @@ const markAttendanceByFaceScan = async (req, res) => {
     // Create new Attendance Record
     const newAttendance = new Attendance({
       userId: matchedUser._id,
+      studentId: matchedUser._id.toString(),
       userModel: bestMatch.userType,
       userName: matchedUser.name,
       userRole: bestMatch.userRole,
       collegeOrCompany: bestMatch.collegeOrCompany,
       date: todayDate,
+      time: formattedCheckIn,
       slotId: activeSlot._id,
       slotName: activeSlot.slotName,
       checkInTime: formattedCheckIn,
@@ -574,10 +544,107 @@ const getAttendanceStats = async (req, res) => {
   }
 };
 
+// GET /api/attendance/export-excel
+// Query params: date (optional for filtering by selected date), userRole, search
+const exportAttendanceToExcel = async (req, res) => {
+  try {
+    const { date, userRole, search } = req.query;
+
+    let query = {};
+    if (date) {
+      query.date = date;
+    }
+    if (userRole) {
+      query.userRole = new RegExp(`^${userRole}$`, "i");
+    }
+    if (search) {
+      query.$or = [
+        { userName: new RegExp(search, "i") },
+        { collegeOrCompany: new RegExp(search, "i") },
+        { subjectName: new RegExp(search, "i") },
+        { slotName: new RegExp(search, "i") },
+      ];
+    }
+
+    if (req.user && req.user.role === "faculty_admin" && req.user.name) {
+      query.facultyName = new RegExp(`^${req.user.name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+    }
+
+    // Sort chronologically date-wise
+    const records = await Attendance.find(query).sort({ date: 1, checkInTime: 1, userName: 1 });
+
+    const rows = records.map((rec, index) => ({
+      "S.No": index + 1,
+      "Date": rec.date || "",
+      "Student Name": rec.userName || "",
+      "Student ID": rec.studentId || (rec.userId ? rec.userId.toString() : ""),
+      "Time": rec.time || rec.checkInTime || "",
+      "Status": rec.status || "Present",
+      "Subject / Lecture": rec.subjectName || rec.slotName || "General Attendance",
+      "Subject Code": rec.subjectCode || "",
+      "Faculty": rec.facultyName || "",
+      "Semester": rec.semester || "",
+      "Division": rec.division || "",
+      "Batch": rec.batch || "",
+      "College / Institution": rec.collegeOrCompany || "",
+      "Verification Method": rec.verificationMethod || "FACE",
+    }));
+
+    const worksheet = xlsx.utils.json_to_sheet(rows);
+
+    // Set column widths
+    worksheet["!cols"] = [
+      { wch: 6 },  // S.No
+      { wch: 14 }, // Date
+      { wch: 24 }, // Student Name
+      { wch: 28 }, // Student ID
+      { wch: 14 }, // Time
+      { wch: 12 }, // Status
+      { wch: 26 }, // Subject / Lecture
+      { wch: 14 }, // Subject Code
+      { wch: 20 }, // Faculty
+      { wch: 12 }, // Semester
+      { wch: 12 }, // Division
+      { wch: 12 }, // Batch
+      { wch: 26 }, // College / Institution
+      { wch: 14 }, // Method
+    ];
+
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Attendance Log");
+
+    const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+    const filename = date
+      ? `Attendance_Report_${date}.xlsx`
+      : `Attendance_Report_All_Dates.xlsx`;
+
+    // Save to project root so it appears in VS Code Explorer
+    const projectRoot = path.resolve(__dirname, "../../");
+    const savedFilePath = path.join(projectRoot, filename);
+    fs.writeFileSync(savedFilePath, buffer);
+    console.log(`Excel file saved to: ${savedFilePath}`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    return res.status(200).send(buffer);
+  } catch (error) {
+    console.error("exportAttendanceToExcel error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to export attendance records to Excel",
+    });
+  }
+};
+
 module.exports = {
   markAttendanceByFaceScan,
   getUserTodayAttendance,
   getUserAttendanceHistory,
   getAllAttendanceRecords,
   getAttendanceStats,
+  exportAttendanceToExcel,
 };
